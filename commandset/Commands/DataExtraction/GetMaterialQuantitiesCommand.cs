@@ -34,7 +34,7 @@ namespace RevitMCPCommandSet.Commands.DataExtraction
                 }
                 else
                 {
-                    throw new TimeoutException("Material quantities calculation timed out");
+                    throw new TimeoutException("Material quantities calculation timed out. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)

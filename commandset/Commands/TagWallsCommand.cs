@@ -44,18 +44,18 @@ namespace RevitMCPCommandSet.Commands
                 _handler.SetParameters(useLeader, tagTypeId);
 
                 // 触发外部事件并等待完成
-                if (RaiseAndWaitForCompletion(10000))
+                if (RaiseAndWaitForCompletion(30000))
                 {
                     return _handler.TaggingResults;
                 }
                 else
                 {
-                    throw new TimeoutException("标记墙操作超时");
+                    throw new TimeoutException("Timed out tagging walls. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception($"标记墙失败: {ex.Message}");
+                throw new Exception($"Failed to tag walls: {ex.Message}");
             }
         }
     }

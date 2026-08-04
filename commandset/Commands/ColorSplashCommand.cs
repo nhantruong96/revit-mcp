@@ -64,13 +64,13 @@ namespace RevitMCPCommandSet.Commands
                 _handler.SetParameters(categoryName, parameterName, useGradient, customColors);
 
                 // Trigger external event and wait for completion
-                if (RaiseAndWaitForCompletion(20000)) // 20 second timeout
+                if (RaiseAndWaitForCompletion(30000)) // 20 second timeout
                 {
                     return _handler.ColoringResults;
                 }
                 else
                 {
-                    throw new TimeoutException("Color splash operation timed out");
+                    throw new TimeoutException("Color splash operation timed out. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)

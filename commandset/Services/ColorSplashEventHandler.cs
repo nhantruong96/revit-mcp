@@ -129,6 +129,19 @@ namespace RevitMCPCommandSet.Services
 
                         parameterValueGroups[paramValue].Add(element.Id);
                     }
+                    else if (TryGetIntrinsicValue(doc, element, _parameterName, out string intrinsicValue))
+                    {
+                        // Names such as "Type Name" or "Category" are intrinsic properties
+                        // rather than looked-up parameters, so LookupParameter returns null
+                        // for them and every element used to collapse into a single "None"
+                        // bucket - colouring the whole selection one colour.
+                        if (!parameterValueGroups.ContainsKey(intrinsicValue))
+                        {
+                            parameterValueGroups[intrinsicValue] = new List<ElementId>();
+                        }
+
+                        parameterValueGroups[intrinsicValue].Add(element.Id);
+                    }
                     else
                     {
                         // Handle elements with no parameter value or null value
@@ -148,6 +161,22 @@ namespace RevitMCPCommandSet.Services
                     {
                         success = false,
                         message = $"No elements with parameter '{_parameterName}' found"
+                    };
+                    return;
+                }
+
+                // A single "None" group means the parameter resolved for no element at all.
+                // Colouring everything one colour is not a useful outcome, and reporting it
+                // as success hid the fact that the parameter name was simply not recognised.
+                if (parameterValueGroups.Count == 1 && parameterValueGroups.ContainsKey("None"))
+                {
+                    ColoringResults = new
+                    {
+                        success = false,
+                        message = $"Parameter '{_parameterName}' could not be read on any of the {elements.Count} elements, "
+                                  + "so they would all receive the same colour. Check the parameter name as it appears in "
+                                  + "Revit's properties palette. Intrinsic names such as 'Type Name', 'Family Name', "
+                                  + "'Family and Type', 'Category' and 'Level' are supported."
                     };
                     return;
                 }
@@ -248,6 +277,52 @@ namespace RevitMCPCommandSet.Services
         /// <summary>
         /// Get parameter value as string
         /// </summary>
+        /// <summary>
+        /// Resolve parameter names that Revit exposes as intrinsic element properties
+        /// rather than as looked-up parameters. Without this, grouping by a name such as
+        /// "Type Name" silently produces one group called "None".
+        /// </summary>
+        private bool TryGetIntrinsicValue(Document doc, Element element, string parameterName, out string value)
+        {
+            value = null;
+            if (element == null || string.IsNullOrWhiteSpace(parameterName)) return false;
+
+            string normalized = parameterName.Replace(" ", string.Empty).Replace("_", string.Empty);
+            ElementType elementType = doc.GetElement(element.GetTypeId()) as ElementType;
+
+            if (normalized.Equals("TypeName", StringComparison.OrdinalIgnoreCase))
+            {
+                value = elementType?.Name;
+            }
+            else if (normalized.Equals("FamilyName", StringComparison.OrdinalIgnoreCase)
+                     || normalized.Equals("Family", StringComparison.OrdinalIgnoreCase))
+            {
+                value = elementType?.FamilyName;
+            }
+            else if (normalized.Equals("FamilyandType", StringComparison.OrdinalIgnoreCase)
+                     || normalized.Equals("FamilyType", StringComparison.OrdinalIgnoreCase))
+            {
+                if (elementType != null) value = $"{elementType.FamilyName}: {elementType.Name}";
+            }
+            else if (normalized.Equals("Category", StringComparison.OrdinalIgnoreCase))
+            {
+                value = element.Category?.Name;
+            }
+            else if (normalized.Equals("Level", StringComparison.OrdinalIgnoreCase))
+            {
+                if (element.LevelId != null && element.LevelId != ElementId.InvalidElementId)
+                {
+                    value = doc.GetElement(element.LevelId)?.Name;
+                }
+            }
+            else if (normalized.Equals("Name", StringComparison.OrdinalIgnoreCase))
+            {
+                value = element.Name;
+            }
+
+            return !string.IsNullOrEmpty(value);
+        }
+
         private string GetParameterValueAsString(Parameter parameter)
         {
             if (!parameter.HasValue)
@@ -309,7 +384,7 @@ namespace RevitMCPCommandSet.Services
 
                         // 尝试通过参数名称识别布尔参数
                         string paramName = parameter.Definition.Name.ToLower();
-                        if (paramName.Contains("是否") ||
+                        if (paramName.Contains("Yes/No") ||
                             paramName.Contains("yes/no") ||
                             paramName.Contains("true/false") ||
                             paramName.Contains("visible") ||
@@ -331,7 +406,7 @@ namespace RevitMCPCommandSet.Services
                         {
                             string valueString = parameter.AsValueString();
                             if (!string.IsNullOrEmpty(valueString) &&
-                                (valueString == "是" || valueString == "否" ||
+                                (valueString == "Yes" || valueString == "No" ||
                                  valueString == "Yes" || valueString == "No"))
                             {
                                 return parameter.AsInteger() == 1 ? "True" : "False";

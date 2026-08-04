@@ -26,8 +26,8 @@ namespace RevitMCPCommandSet.Services
         public AIResult<List<int>> Result { get; private set; }
         private List<string> _warnings = new List<string>();
 
-        public string _wallName = "常规 - ";
-        public string _ductName = "矩形风管 - ";
+        public string _wallName = "Generic - ";
+        public string _ductName = "Rectangular Duct - ";
 
         /// <summary>
         /// 设置创建的参数
@@ -101,11 +101,12 @@ namespace RevitMCPCommandSet.Services
                         case BuiltInCategory.OST_Walls:
                             if (wallType == null)
                             {
-                                // Requested typeId was invalid or not provided, fall back to first available
-                                wallType = new FilteredElementCollector(doc)
-                                    .OfClass(typeof(WallType))
-                                    .Cast<WallType>()
-                                    .FirstOrDefault();
+                                // No usable typeId. Taking the first WallType in the document
+                                // returned a Curtain Wall on real models and silently threw the
+                                // requested thickness away, so prefer a basic wall type whose
+                                // width actually matches, and say so when nothing matches.
+                                wallType = FindBasicWallType(doc, data.Thickness, out bool thicknessMatched);
+
                                 if (wallType == null)
                                 {
                                     _warnings.Add($"No wall types available in project.");
@@ -114,6 +115,15 @@ namespace RevitMCPCommandSet.Services
                                 if (requestedTypeId != -1 && requestedTypeId != 0)
                                 {
                                     _warnings.Add($"Requested wall typeId {requestedTypeId} not found. Defaulted to '{wallType.Name}' (ID: {wallType.Id.GetValue()})");
+                                }
+                                else
+                                {
+                                    _warnings.Add($"No typeId given. Using wall type '{wallType.Name}' (ID: {wallType.Id.GetValue()}).");
+                                }
+                                if (data.Thickness > 0 && !thicknessMatched)
+                                {
+                                    _warnings.Add($"No wall type is {data.Thickness:F0}mm thick, so the wall was built as '{wallType.Name}' at {wallType.Width * 304.8:F0}mm instead. " +
+                                                  "The thickness parameter cannot create new wall types - pass a typeId from get_available_family_types to control this.");
                                 }
                             }
                             break;
@@ -133,6 +143,10 @@ namespace RevitMCPCommandSet.Services
                                 if (requestedTypeId != -1 && requestedTypeId != 0)
                                 {
                                     _warnings.Add($"Requested duct typeId {requestedTypeId} not found. Defaulted to '{ductType.Name}' (ID: {ductType.Id.GetValue()})");
+                                }
+                                else
+                                {
+                                    _warnings.Add($"No typeId given. Using duct type '{ductType.Name}' (ID: {ductType.Id.GetValue()}).");
                                 }
                             }
                             break;
@@ -161,12 +175,16 @@ namespace RevitMCPCommandSet.Services
                                 {
                                     _warnings.Add($"Requested typeId {requestedTypeId} not found. Defaulted to '{symbol.FamilyName}: {symbol.Name}' (ID: {symbol.Id.GetValue()})");
                                 }
+                                else
+                                {
+                                    _warnings.Add($"No typeId given. Using family type '{symbol.FamilyName}: {symbol.Name}' (ID: {symbol.Id.GetValue()}).");
+                                }
                             }
                             break;
                     }
 
                     // Step3 调用通用方法创建族实例
-                    using (Transaction transaction = new Transaction(doc, "创建点状构件"))
+                    using (Transaction transaction = new Transaction(doc, "Create point-based element"))
                     {
                         transaction.Start();
                         switch (builtInCategory)
@@ -234,14 +252,22 @@ namespace RevitMCPCommandSet.Services
                         transaction.Commit();
                     }
                 }
-                string message = $"Successfully created {elementIds.Count} element(s).";
+                // Creating nothing is a failure, not a success.
+                bool anyCreated = elementIds.Count > 0;
+                string message = anyCreated
+                    ? $"Successfully created {elementIds.Count} element(s)."
+                    : $"Created no elements out of {CreatedInfo.Count} requested. Supply an explicit typeId - "
+                      + "call get_available_family_types to obtain one.";
+
                 if (_warnings.Count > 0)
                 {
-                    message += "\n\n⚠ Warnings:\n  • " + string.Join("\n  • ", _warnings);
+                    message += (anyCreated ? "\n\n⚠ Warnings:\n  • " : "\n\nDetails:\n  • ")
+                               + string.Join("\n  • ", _warnings);
                 }
+
                 Result = new AIResult<List<int>>
                 {
-                    Success = true,
+                    Success = anyCreated,
                     Message = message,
                     Response = elementIds,
                 };
@@ -251,9 +277,9 @@ namespace RevitMCPCommandSet.Services
                 Result = new AIResult<List<int>>
                 {
                     Success = false,
-                    Message = $"创建线状构件时出错: {ex.Message}",
+                    Message = $"Error creating line-based element: {ex.Message}",
                 };
-                TaskDialog.Show("错误", $"创建线状构件时出错: {ex.Message}");
+                TaskDialog.Show("Error", $"Error creating line-based element: {ex.Message}");
             }
             finally
             {
@@ -277,7 +303,7 @@ namespace RevitMCPCommandSet.Services
         /// </summary>
         public string GetName()
         {
-            return "创建线状构件";
+            return "Create line-based element";
         }
 
         /// <summary>
@@ -287,6 +313,37 @@ namespace RevitMCPCommandSet.Services
         /// <param name="width">宽度（ft）</param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
+        private WallType FindBasicWallType(Document doc, double thicknessMm, out bool thicknessMatched)
+        {
+            thicknessMatched = false;
+
+            var basicWallTypes = new FilteredElementCollector(doc)
+                .OfClass(typeof(WallType))
+                .Cast<WallType>()
+                .Where(w => w.Kind == WallKind.Basic)
+                .ToList();
+
+            if (thicknessMm > 0)
+            {
+                // 1mm tolerance, expressed in feet since Width is reported in feet.
+                double targetFt = thicknessMm / 304.8;
+                WallType exact = basicWallTypes.FirstOrDefault(w => Math.Abs(w.Width - targetFt) < (1.0 / 304.8));
+                if (exact != null)
+                {
+                    thicknessMatched = true;
+                    return exact;
+                }
+            }
+
+            if (basicWallTypes.Count > 0) return basicWallTypes[0];
+
+            // Nothing basic available - fall back to whatever exists so creation can proceed.
+            return new FilteredElementCollector(doc)
+                .OfClass(typeof(WallType))
+                .Cast<WallType>()
+                .FirstOrDefault();
+        }
+
         private WallType CreateOrGetWallType(Document doc, double width = 200 / 304.8)
         {
             // 如果没有有效的类型
@@ -302,7 +359,7 @@ namespace RevitMCPCommandSet.Services
             WallType baseWallType = new FilteredElementCollector(doc)
                                     .OfClass(typeof(WallType))
                                     .Cast<WallType>()
-                                    .FirstOrDefault(w => w.Name.Contains("常规")); ;
+                                    .FirstOrDefault(w => w.Name.Contains("Generic")); ;
             if (baseWallType == null)
             {
                 baseWallType = new FilteredElementCollector(doc)
@@ -312,7 +369,7 @@ namespace RevitMCPCommandSet.Services
             }
 
             if (baseWallType == null)
-                throw new InvalidOperationException("未找到可用的基础墙类型");
+                throw new InvalidOperationException("No usable base wall type was found");
 
             // 复制墙体类型
             WallType newWallType = null;
@@ -369,7 +426,7 @@ namespace RevitMCPCommandSet.Services
                                     .FirstOrDefault(d => d.Shape == ConnectorProfileType.Rectangular);
 
             if (baseDuctType == null)
-                throw new InvalidOperationException("未找到可用的基础矩形风管类型");
+                throw new InvalidOperationException("No usable base rectangular duct type was found");
 
             // 复制风管类型
             DuctType newDuctType = baseDuctType.Duplicate(typeName) as DuctType;

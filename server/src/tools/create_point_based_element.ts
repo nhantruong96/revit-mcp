@@ -15,8 +15,9 @@ export function registerCreatePointBasedElementTool(server: McpServer) {
               .describe("Description of the element (e.g., door, window)"),
             typeId: z
               .number()
-              .optional()
-              .describe("The ID of the family type to create."),
+              .describe(
+                "The ID of the family type to place. Required: unlike the line- and surface-based tools, this one has no category field, so typeId is the only thing that identifies what to create. Get a valid id from get_available_family_types."
+              ),
             locationPoint: z
               .object({
                 x: z.number().describe("X coordinate"),

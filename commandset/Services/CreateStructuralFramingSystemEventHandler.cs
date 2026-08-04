@@ -87,24 +87,34 @@ namespace RevitMCPCommandSet.Services
                 {
                     trans.Start();
 
-                    // 1. Resolve Level - Find nearest existing level to the target elevation (like walls do)
-                    Level level = doc.FindNearestLevel(Parameters.Elevation / 304.8);
-                    if (level == null)
+                    // 1. Resolve Level - an explicitly named level always wins. Only fall back
+                    //    to "nearest level to the target elevation" when no name was given.
+                    //    Snapping a named level to whatever happens to sit near the elevation
+                    //    silently drops beams into an unrelated storey of a real building.
+                    Level level;
+                    if (!string.IsNullOrWhiteSpace(Parameters.LevelName))
                     {
-                        // Fallback: try to find any level
-                        level = new FilteredElementCollector(doc)
-                            .OfClass(typeof(Level))
-                            .Cast<Level>()
-                            .FirstOrDefault();
+                        level = ResolveLevel(doc, Parameters.LevelName, warnings);
                     }
+                    else
+                    {
+                        level = doc.FindNearestLevel(Parameters.Elevation / 304.8)
+                                ?? new FilteredElementCollector(doc)
+                                    .OfClass(typeof(Level))
+                                    .Cast<Level>()
+                                    .FirstOrDefault();
+
+                        if (level != null)
+                        {
+                            double nearestElevationMm = level.Elevation * 304.8;
+                            warnings.Add($"No levelName was given. Using level '{level.Name}' at elevation {nearestElevationMm:F0}mm, the nearest to target elevation {Parameters.Elevation:F0}mm.");
+                        }
+                    }
+
                     if (level == null)
                     {
                         throw new Exception("No levels found in project. Please create at least one level before creating beam systems.");
                     }
-
-                    // Add info about which level was selected
-                    double levelElevationMm = level.Elevation * 304.8;
-                    warnings.Add($"Using level '{level.Name}' at elevation {levelElevationMm:F0}mm (nearest to target elevation {Parameters.Elevation:F0}mm)");
 
                     // 2. Build rectangular profile (4 curves in closed loop)
                     List<Curve> profileCurves = BuildRectangularProfile(
@@ -142,8 +152,13 @@ namespace RevitMCPCommandSet.Services
                     doc.Regenerate();
 
                     // 8. Apply elevation offset to all beams using Z_OFFSET_VALUE parameter
-                    // Note: BeamSystem.Create() places beams at level elevation. We use Z_OFFSET_VALUE to offset them.
-                    double elevationOffsetFt = (Parameters.Elevation / 304.8) - level.Elevation;
+                    // Note: BeamSystem.Create() places beams at level elevation, and Z_OFFSET_VALUE
+                    // shifts them relative to that level - so this value is already an offset.
+                    // Subtracting level.Elevation here treated the parameter as an absolute project
+                    // elevation, which contradicted its documented meaning ("offset from the level")
+                    // and meant the default of 0 dragged every beam down to absolute elevation 0 on
+                    // any level that is not itself at 0.
+                    double elevationOffsetFt = Parameters.Elevation / 304.8;
 
                     if (Math.Abs(elevationOffsetFt) > 0.001) // Only apply if there's a meaningful offset
                     {
@@ -166,12 +181,25 @@ namespace RevitMCPCommandSet.Services
 
                         if (elevationSetCount > 0)
                         {
-                            warnings.Add($"Applied elevation offset of {Parameters.Elevation:F0}mm to {elevationSetCount} beams");
+                            warnings.Add($"Applied an offset of {Parameters.Elevation:F0}mm above level '{level.Name}' to {elevationSetCount} beams");
                         }
                         else if (beamIdsForElevation.Count > 0)
                         {
                             warnings.Add("Could not apply elevation offset - Z_OFFSET_VALUE parameter not available");
                         }
+                    }
+
+                    // 8b. Report the level Revit actually assigned rather than asserting the one we
+                    // asked for. Revit sets each beam's reference level from its resulting elevation,
+                    // so a request for "L2" can legitimately end up referencing a nearby level such
+                    // as "L2 TOS". Claiming the requested level made that impossible to notice.
+                    string assignedLevelName = GetAssignedReferenceLevelName(doc, beamSystem);
+                    if (!string.IsNullOrEmpty(assignedLevelName) &&
+                        !assignedLevelName.Equals(level.Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        warnings.Add($"Beam system was created on level '{level.Name}', but Revit assigned reference level "
+                                     + $"'{assignedLevelName}' to the beams themselves, as that is the level nearest their "
+                                     + "resulting elevation. Verify the placement if the distinction matters.");
                     }
 
                     trans.Commit();
@@ -283,6 +311,33 @@ namespace RevitMCPCommandSet.Services
         /// <summary>
         /// Resolve level by name, with fallback to active view's level, or create if doesn't exist
         /// </summary>
+        /// <summary>
+        /// Read back the reference level Revit actually gave the member beams, so the caller is
+        /// told what happened rather than what was requested. Returns null when it cannot be read.
+        /// </summary>
+        private string GetAssignedReferenceLevelName(Document doc, BeamSystem beamSystem)
+        {
+            try
+            {
+                foreach (ElementId beamId in beamSystem.GetBeamIds())
+                {
+                    if (!(doc.GetElement(beamId) is FamilyInstance beam)) continue;
+
+                    Parameter refLevel = beam.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM);
+                    if (refLevel == null) continue;
+
+                    Level assigned = doc.GetElement(refLevel.AsElementId()) as Level;
+                    if (assigned != null) return assigned.Name;
+                }
+            }
+            catch
+            {
+                // Reporting is best-effort: never fail the creation because the check failed.
+            }
+
+            return null;
+        }
+
         private Level ResolveLevel(Document doc, string levelName, List<string> warnings)
         {
             // Try exact name match first

@@ -44,13 +44,13 @@ namespace RevitMCPCommandSet.Commands
                 _handler.SetParameters(data);
 
                 // Wait for completion with 15 second timeout (beam creation can be slower)
-                if (RaiseAndWaitForCompletion(15000))
+                if (RaiseAndWaitForCompletion(30000))
                 {
                     return _handler.Result;
                 }
                 else
                 {
-                    throw new TimeoutException("Beam system creation operation timed out");
+                    throw new TimeoutException("Beam system creation operation timed out. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)

@@ -64,7 +64,7 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
                 }
                 else
                 {
-                    using (var transaction = new Transaction(doc, "执行AI代码"))
+                    using (var transaction = new Transaction(doc, "Execute AI code"))
                     {
                         transaction.Start();
 
@@ -84,7 +84,7 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
             catch (Exception ex)
             {
                 ResultInfo.Success = false;
-                ResultInfo.ErrorMessage = $"执行失败: {ex.Message}";
+                ResultInfo.ErrorMessage = $"Execution failed: {ex.Message}";
             }
             finally
             {
@@ -118,8 +118,16 @@ namespace AIGeneratedCode
             var syntaxTree = CSharpSyntaxTree.ParseText(wrappedCode);
 
             // 添加必要的程序集引用（引用所有已加载的程序集）
+            // Reference every loaded assembly, but keep only one per simple name. Revit
+            // loads several assemblies that share a simple name from different paths
+            // (Autodesk.Http.JsonApi and Autodesk.Http.DevPortal, pulled in by the
+            // built-in IssuesManagement add-in, are the ones seen on Revit 2027).
+            // Handing Roslyn two references with the same simple name fails the entire
+            // compilation with CS1704, so even `return "hello";` would not build.
             var references = AppDomain.CurrentDomain.GetAssemblies()
                 .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
+                .GroupBy(a => a.GetName().Name)
+                .Select(g => g.First())
                 .Select(a => MetadataReference.CreateFromFile(a.Location))
                 .Cast<MetadataReference>()
                 .ToList();
@@ -142,7 +150,7 @@ namespace AIGeneratedCode
                     var errors = string.Join("\n", result.Diagnostics
                         .Where(d => d.Severity == DiagnosticSeverity.Error)
                         .Select(d => $"Line {d.Location.GetLineSpan().StartLinePosition.Line}: {d.GetMessage()}"));
-                    throw new Exception($"代码编译错误:\n{errors}");
+                    throw new Exception($"Code compilation error:\n{errors}");
                 }
 
                 // 反射调用执行方法
@@ -157,7 +165,7 @@ namespace AIGeneratedCode
 
         public string GetName()
         {
-            return "执行AI代码";
+            return "Execute AI code";
         }
     }
 

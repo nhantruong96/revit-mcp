@@ -70,9 +70,9 @@ public class CreateDimensionCommand : ExternalEventCommandBase
             _handler.SetParameters(dimensions);
 
             // Raise event and wait for completion
-            if (RaiseAndWaitForCompletion(20000)) // 20 seconds timeout
+            if (RaiseAndWaitForCompletion(30000)) // 20 seconds timeout
                 return _handler.Result;
-            throw new TimeoutException("Dimension creation operation timed out");
+            throw new TimeoutException("Dimension creation operation timed out. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
         }
         catch (Exception ex)
         {

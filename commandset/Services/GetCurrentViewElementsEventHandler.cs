@@ -162,7 +162,7 @@ namespace RevitMCPCommandSet.Services
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("error", ex.Message);
+                TaskDialog.Show("Error", ex.Message);
             }
             finally
             {
@@ -226,7 +226,7 @@ namespace RevitMCPCommandSet.Services
 
         public string GetName()
         {
-            return "获取当前视图元素";
+            return "Get current view elements";
         }
     }
 }

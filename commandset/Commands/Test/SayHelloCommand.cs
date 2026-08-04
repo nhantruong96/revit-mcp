@@ -32,13 +32,13 @@ namespace RevitMCPCommandSet.Commands.Test
 
                     _handler.Message = message;
 
-                    if (RaiseAndWaitForCompletion(15000))
+                    if (RaiseAndWaitForCompletion(30000))
                     {
                         return new { success = true, message = message };
                     }
                     else
                     {
-                        throw new TimeoutException("Say hello operation timed out");
+                        throw new TimeoutException("Say hello operation timed out. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                     }
                 }
                 catch (Exception ex)

@@ -34,18 +34,18 @@ namespace RevitMCPCommandSet.Commands.Access
                     _handler.Limit = limit;
 
                     // 触发外部事件并等待完成，最多等待15秒
-                    if (RaiseAndWaitForCompletion(15000))
+                    if (RaiseAndWaitForCompletion(30000))
                     {
                         return _handler.ResultFamilyTypes;
                     }
                     else
                     {
-                        throw new TimeoutException("获取可用族类型超时");
+                        throw new TimeoutException("Timed out getting available family types. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception($"获取可用族类型失败: {ex.Message}");
+                    throw new Exception($"Failed to get available family types: {ex.Message}");
                 }
             }
         }

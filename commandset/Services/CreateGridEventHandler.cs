@@ -249,21 +249,14 @@ namespace RevitMCPCommandSet.Services
             }
             else // alphabetic
             {
-                // Convert startLabel to uppercase for consistency
-                string upperStart = startLabel.ToUpper();
-
-                // Get starting letter (use first character if multiple)
-                char startChar = upperStart.Length > 0 ? upperStart[0] : 'A';
-
-                // Ensure it's a letter, default to 'A' if not
-                if (!char.IsLetter(startChar))
-                {
-                    startChar = 'A';
-                }
+                // Parse the whole starting label, not just its first character. Reading
+                // only startLabel[0] turned a requested start of "ZA" into "Z", and the
+                // sequence then continued Z, AA, AB instead of ZA, ZB, ZC.
+                int startIndex = ParseAlphabeticLabel(startLabel);
 
                 for (int i = 0; i < count; i++)
                 {
-                    labels.Add(GenerateAlphabeticLabel(startChar, i));
+                    labels.Add(GenerateAlphabeticLabel(startIndex + i));
                 }
             }
 
@@ -271,11 +264,34 @@ namespace RevitMCPCommandSet.Services
         }
 
         /// <summary>
+        /// Convert an alphabetic label to its zero-based sequence index, so that
+        /// multi-letter starting labels survive. Uses spreadsheet-column numbering:
+        /// A=0, Z=25, AA=26, ZA=676. Non-letters are ignored; an empty or fully
+        /// invalid label falls back to A.
+        /// </summary>
+        private int ParseAlphabeticLabel(string label)
+        {
+            if (string.IsNullOrWhiteSpace(label)) return 0;
+
+            int index = 0;
+            bool sawLetter = false;
+
+            foreach (char c in label.ToUpper())
+            {
+                if (c < 'A' || c > 'Z') continue;
+                index = (index * 26) + (c - 'A' + 1);
+                sawLetter = true;
+            }
+
+            return sawLetter ? index - 1 : 0;
+        }
+
+        /// <summary>
         /// Generate alphabetic label (A, B, C, ..., Z, AA, AB, ...)
         /// </summary>
-        private string GenerateAlphabeticLabel(char startChar, int offset)
+        private string GenerateAlphabeticLabel(int charIndex)
         {
-            int charIndex = (startChar - 'A') + offset;
+            if (charIndex < 0) charIndex = 0;
 
             if (charIndex < 26)
             {

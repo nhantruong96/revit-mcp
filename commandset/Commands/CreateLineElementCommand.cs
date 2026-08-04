@@ -32,24 +32,24 @@ namespace RevitMCPCommandSet.Commands
                 // 解析参数
                 data = parameters["data"].ToObject<List<LineElement>>();
                 if (data == null)
-                    throw new ArgumentNullException(nameof(data), "AI传入数据为空");
+                    throw new ArgumentNullException(nameof(data), "The data sent by the AI is empty");
 
                 // 设置线状构件体参数
                 _handler.SetParameters(data);
 
                 // 触发外部事件并等待完成
-                if (RaiseAndWaitForCompletion(10000))
+                if (RaiseAndWaitForCompletion(30000))
                 {
                     return _handler.Result;
                 }
                 else
                 {
-                    throw new TimeoutException("创建线状构件操作超时");
+                    throw new TimeoutException("Timed out creating line-based element. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception($"创建线状构件失败: {ex.Message}");
+                throw new Exception($"Failed to create line-based element: {ex.Message}");
             }
         }
     }

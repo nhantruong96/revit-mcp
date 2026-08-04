@@ -27,14 +27,14 @@ namespace RevitMCPCommandSet.Commands.Delete
                     var elementIds = parameters?["elementIds"]?.ToObject<string[]>();
                     if (elementIds == null || elementIds.Length == 0)
                     {
-                        throw new ArgumentException("元素ID列表不能为空");
+                        throw new ArgumentException("The element id list cannot be empty");
                     }
 
                     // 设置要删除的元素ID数组
                     _handler.ElementIds = elementIds;
 
                     // 触发外部事件并等待完成
-                    if (RaiseAndWaitForCompletion(15000))
+                    if (RaiseAndWaitForCompletion(30000))
                     {
                         if (_handler.IsSuccess)
                         {
@@ -42,17 +42,17 @@ namespace RevitMCPCommandSet.Commands.Delete
                         }
                         else
                         {
-                            throw new Exception("删除元素失败");
+                            throw new Exception("Failed to delete elements");
                         }
                     }
                     else
                     {
-                        throw new TimeoutException("删除元素操作超时");
+                        throw new TimeoutException("Timed out deleting elements. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception($"删除元素失败: {ex.Message}");
+                    throw new Exception($"Failed to delete elements: {ex.Message}");
                 }
             }
         }

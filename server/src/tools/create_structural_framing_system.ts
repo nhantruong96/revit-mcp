@@ -56,7 +56,7 @@ export function registerCreateStructuralFramingSystemTool(server: McpServer) {
         .number()
         .default(0)
         .describe(
-          "Elevation offset from the level in millimeters. Use this to adjust the vertical position of the beam system."
+          "Vertical offset from levelName in millimeters, positive upwards. Leave at 0 to sit the beams on the level itself. This is relative to the level, not an absolute project elevation, and it never changes which level is used - levelName alone decides that."
         ),
       is3d: z
         .boolean()

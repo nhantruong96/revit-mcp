@@ -36,12 +36,12 @@ namespace RevitMCPCommandSet.Commands.Access
                 }
                 else
                 {
-                    throw new TimeoutException("获取视图元素超时");
+                    throw new TimeoutException("Timed out getting view elements. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception($"获取视图元素失败: {ex.Message}");
+                throw new Exception($"Failed to get view elements: {ex.Message}");
             }
         }
     }

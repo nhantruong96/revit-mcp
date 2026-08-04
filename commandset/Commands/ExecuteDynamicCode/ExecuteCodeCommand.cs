@@ -44,12 +44,12 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
                 }
                 else
                 {
-                    throw new TimeoutException("代码执行超时");
+                    throw new TimeoutException("Code execution timed out. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception($"执行代码失败: {ex.Message}", ex);
+                throw new Exception($"Failed to execute code: {ex.Message}", ex);
             }
         }
     }

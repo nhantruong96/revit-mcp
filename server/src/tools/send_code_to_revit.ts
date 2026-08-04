@@ -12,12 +12,12 @@ const transactionModeSchema = z
 export function registerSendCodeToRevitTool(server: McpServer) {
   server.tool(
     "send_code_to_revit",
-    "Send C# code to Revit for execution. The code will be inserted into a template with access to the Revit Document and parameters. Your code should be written to work within the Execute method of the template.",
+    "Send C# code to Revit for execution. Your code is inserted verbatim into the body of `public static object Execute(Document document, object[] parameters)`, so write statements only - no method or class declaration - and end with a `return`. The active document is the lowercase variable `document`; `Document` on its own is the type, not the instance. System, System.Linq, System.Collections.Generic, Autodesk.Revit.DB and Autodesk.Revit.UI are already imported.",
     {
       code: z
         .string()
         .describe(
-          "The C# code to execute in Revit. This code will be inserted into the Execute method of a template with access to Document and parameters."
+          "C# statements to run inside Execute(Document document, object[] parameters). Use the lowercase `document` variable for the active document and `parameters` for the arguments. Example: `return new FilteredElementCollector(document).OfClass(typeof(Wall)).GetElementCount();`"
         ),
       parameters: z
         .array(z.string())

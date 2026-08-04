@@ -34,7 +34,7 @@ namespace RevitMCPCommandSet.Commands.DataExtraction
                 }
                 else
                 {
-                    throw new TimeoutException("Export room data operation timed out");
+                    throw new TimeoutException("Export room data operation timed out. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)

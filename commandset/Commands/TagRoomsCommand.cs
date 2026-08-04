@@ -53,13 +53,13 @@ namespace RevitMCPCommandSet.Commands
                 _handler.SetParameters(useLeader, tagTypeId, roomIds);
 
                 // Trigger external event and wait for completion
-                if (RaiseAndWaitForCompletion(15000)) // 15 second timeout
+                if (RaiseAndWaitForCompletion(30000)) // 15 second timeout
                 {
                     return _handler.TaggingResults;
                 }
                 else
                 {
-                    throw new TimeoutException("Tag rooms operation timed out");
+                    throw new TimeoutException("Tag rooms operation timed out. Revit did not run the request within the time limit, usually because its UI was busy (a view change, a dialog, or a long redraw). The request may still complete on its own, so check the model before retrying.");
                 }
             }
             catch (Exception ex)

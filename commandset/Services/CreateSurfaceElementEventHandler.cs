@@ -23,7 +23,7 @@ namespace RevitMCPCommandSet.Services
         /// 执行结果（传出数据）
         /// </summary>
         public AIResult<List<int>> Result { get; private set; }
-        public string _floorName = "常规 - ";
+        public string _floorName = "Generic - ";
         public bool _structural = true;
         private List<string> _warnings = new List<string>();
 
@@ -103,12 +103,30 @@ namespace RevitMCPCommandSet.Services
                         case BuiltInCategory.OST_Floors:
                             if (floorType == null)
                             {
-                                // Requested typeId was invalid or not provided, fall back to first available
-                                floorType = new FilteredElementCollector(doc)
+                                // No usable typeId. Taking the first FloorType silently discarded
+                                // the requested thickness (a 300mm slab came back as
+                                // "Generic - 12"), so prefer a type whose structure actually
+                                // matches and say so when none does.
+                                var floorTypes = new FilteredElementCollector(doc)
                                     .OfClass(typeof(FloorType))
                                     .OfCategory(BuiltInCategory.OST_Floors)
                                     .Cast<FloorType>()
-                                    .FirstOrDefault();
+                                    .ToList();
+
+                                bool thicknessMatched = false;
+                                if (data.Thickness > 0)
+                                {
+                                    double targetFt = data.Thickness / 304.8;
+                                    floorType = floorTypes.FirstOrDefault(ft =>
+                                    {
+                                        CompoundStructure cs = ft.GetCompoundStructure();
+                                        return cs != null && Math.Abs(cs.GetWidth() - targetFt) < (1.0 / 304.8);
+                                    });
+                                    thicknessMatched = floorType != null;
+                                }
+
+                                if (floorType == null) floorType = floorTypes.FirstOrDefault();
+
                                 if (floorType == null)
                                 {
                                     _warnings.Add($"No floor types available in project.");
@@ -117,6 +135,15 @@ namespace RevitMCPCommandSet.Services
                                 if (requestedTypeId != -1 && requestedTypeId != 0)
                                 {
                                     _warnings.Add($"Requested floor typeId {requestedTypeId} not found. Defaulted to '{floorType.Name}' (ID: {floorType.Id.GetIntValue()})");
+                                }
+                                else
+                                {
+                                    _warnings.Add($"No typeId given. Using floor type '{floorType.Name}' (ID: {floorType.Id.GetIntValue()}).");
+                                }
+                                if (data.Thickness > 0 && !thicknessMatched)
+                                {
+                                    _warnings.Add($"No floor type is {data.Thickness:F0}mm thick, so '{floorType.Name}' was used instead. "
+                                                  + "The thickness parameter cannot create new floor types - pass a typeId from get_available_family_types to control this.");
                                 }
                             }
                             break;
@@ -138,6 +165,10 @@ namespace RevitMCPCommandSet.Services
                                 {
                                     _warnings.Add($"Requested roof typeId {requestedTypeId} not found. Defaulted to '{roofType.Name}' (ID: {roofType.Id.GetIntValue()})");
                                 }
+                                else
+                                {
+                                    _warnings.Add($"No typeId given. Using roof type '{roofType.Name}' (ID: {roofType.Id.GetIntValue()}).");
+                                }
                             }
                             break;
                         case BuiltInCategory.OST_Ceilings:
@@ -157,6 +188,10 @@ namespace RevitMCPCommandSet.Services
                                 if (requestedTypeId != -1 && requestedTypeId != 0)
                                 {
                                     _warnings.Add($"Requested ceiling typeId {requestedTypeId} not found. Defaulted to '{ceilingType.Name}' (ID: {ceilingType.Id.GetIntValue()})");
+                                }
+                                else
+                                {
+                                    _warnings.Add($"No typeId given. Using ceiling type '{ceilingType.Name}' (ID: {ceilingType.Id.GetIntValue()}).");
                                 }
                             }
                             break;
@@ -184,7 +219,7 @@ namespace RevitMCPCommandSet.Services
 
                     // Step3 批量创建楼板
                     Floor floor = null;
-                    using (Transaction transaction = new Transaction(doc, "创建面状构件"))
+                    using (Transaction transaction = new Transaction(doc, "Create surface-based element"))
                     {
                         transaction.Start();
 
@@ -265,14 +300,22 @@ namespace RevitMCPCommandSet.Services
                         transaction.Commit();
                     }
                 }
-                string message = $"Successfully created {elementIds.Count} element(s).";
+                // Creating nothing is a failure, not a success.
+                bool anyCreated = elementIds.Count > 0;
+                string message = anyCreated
+                    ? $"Successfully created {elementIds.Count} element(s)."
+                    : $"Created no elements out of {CreatedInfo.Count} requested. Supply an explicit typeId - "
+                      + "call get_available_family_types to obtain one.";
+
                 if (_warnings.Count > 0)
                 {
-                    message += "\n\n⚠ Warnings:\n  • " + string.Join("\n  • ", _warnings);
+                    message += (anyCreated ? "\n\n⚠ Warnings:\n  • " : "\n\nDetails:\n  • ")
+                               + string.Join("\n  • ", _warnings);
                 }
+
                 Result = new AIResult<List<int>>
                 {
-                    Success = true,
+                    Success = anyCreated,
                     Message = message,
                     Response = elementIds,
                 };
@@ -282,9 +325,9 @@ namespace RevitMCPCommandSet.Services
                 Result = new AIResult<List<int>>
                 {
                     Success = false,
-                    Message = $"创建面状构件时出错: {ex.Message}",
+                    Message = $"Error creating surface-based element: {ex.Message}",
                 };
-                TaskDialog.Show("错误", $"创建面状构件时出错: {ex.Message}");
+                TaskDialog.Show("Error", $"Error creating surface-based element: {ex.Message}");
             }
             finally
             {
@@ -308,7 +351,7 @@ namespace RevitMCPCommandSet.Services
         /// </summary>
         public string GetName()
         {
-            return "创建面状构件";
+            return "Create surface-based element";
         }
 
         /// <summary>
@@ -332,7 +375,7 @@ namespace RevitMCPCommandSet.Services
                                      .OfClass(typeof(FloorType))                    // 仅获取FloorType类
                                      .OfCategory(BuiltInCategory.OST_Floors)        // 仅获取楼板类别
                                      .Cast<FloorType>()                            // 转换为FloorType类型
-                                     .FirstOrDefault(w => w.Name.Contains("常规"));
+                                     .FirstOrDefault(w => w.Name.Contains("Generic"));
             if (existingType != null)
             {
                 baseFloorType = existingType = new FilteredElementCollector(doc)

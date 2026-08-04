@@ -56,11 +56,16 @@ namespace RevitMCPCommandSet.Services
                     double topOffset = -1;  // ft
                     double baseOffset = -1; // ft
                     baseLevel = doc.FindNearestLevel(data.BaseLevel / 304.8);
+                    if (baseLevel == null)
+                    {
+                        // Checked before use: the offset maths below dereferences baseLevel,
+                        // so the original null check further down could never be reached.
+                        _warnings.Add($"No level found near elevation {data.BaseLevel:F0}mm for category '{data.Category}'. Element skipped.");
+                        continue;
+                    }
                     baseOffset = (data.BaseOffset + data.BaseLevel) / 304.8 - baseLevel.Elevation;
                     topLevel = doc.FindNearestLevel((data.BaseLevel + data.BaseOffset + data.Height) / 304.8);
                     topOffset = (data.BaseLevel + data.BaseOffset + data.Height) / 304.8 - topLevel.Elevation;
-                    if (baseLevel == null)
-                        continue;
 
                     // Step2 获取族类型
                     FamilySymbol symbol = null;
@@ -79,7 +84,23 @@ namespace RevitMCPCommandSet.Services
                         }
                     }
                     if (builtInCategory == BuiltInCategory.INVALID)
+                    {
+                        // The point-based schema exposes no category field, so Category keeps its
+                        // "INVALID" default and typeId is the only thing that can identify what to
+                        // place. Blaming the category pointed callers at a value they cannot set,
+                        // and reported a supplied-but-unresolvable typeId as if none was given.
+                        if (requestedTypeId == -1 || requestedTypeId == 0)
+                        {
+                            _warnings.Add("No typeId was given. Point-based elements are identified by typeId alone, "
+                                          + "so it is required here - call get_available_family_types to obtain one. Element skipped.");
+                        }
+                        else
+                        {
+                            _warnings.Add($"typeId {requestedTypeId} does not exist in this document, or does not refer to a "
+                                          + "family type. Call get_available_family_types for valid ids. Element skipped.");
+                        }
                         continue;
+                    }
                     if (symbol == null)
                     {
                         symbol = new FilteredElementCollector(doc)
@@ -104,12 +125,16 @@ namespace RevitMCPCommandSet.Services
                         {
                             _warnings.Add($"Requested typeId {requestedTypeId} not found. Defaulted to '{symbol.FamilyName}: {symbol.Name}' (ID: {symbol.Id.GetValue()})");
                         }
+                        else
+                        {
+                            _warnings.Add($"No typeId given. Using family type '{symbol.FamilyName}: {symbol.Name}' (ID: {symbol.Id.GetValue()}).");
+                        }
                     }
                     if (symbol == null)
                         continue;
 
                     // Step3 调用通用方法创建族实例
-                    using (Transaction transaction = new Transaction(doc, "创建点状构件"))
+                    using (Transaction transaction = new Transaction(doc, "Create point-based element"))
                     {
                         transaction.Start();
 
@@ -215,14 +240,25 @@ namespace RevitMCPCommandSet.Services
                         transaction.Commit();
                     }
                 }
-                string message = $"Successfully created {elementIds.Count} element(s).";
+                // Creating nothing is a failure, not a success. Reporting Success = true
+                // alongside "created 0 element(s)" made batch callers believe the model had
+                // been changed when it had not.
+                bool anyCreated = elementIds.Count > 0;
+                string message = anyCreated
+                    ? $"Successfully created {elementIds.Count} element(s)."
+                    : $"Created no elements out of {CreatedInfo.Count} requested. See the details below - "
+                      + "point-based elements are identified by typeId alone, which you can obtain "
+                      + "from get_available_family_types.";
+
                 if (_warnings.Count > 0)
                 {
-                    message += "\n\n⚠ Warnings:\n  • " + string.Join("\n  • ", _warnings);
+                    message += (anyCreated ? "\n\n⚠ Warnings:\n  • " : "\n\nDetails:\n  • ")
+                               + string.Join("\n  • ", _warnings);
                 }
+
                 Result = new AIResult<List<int>>
                 {
-                    Success = true,
+                    Success = anyCreated,
                     Message = message,
                     Response = elementIds,
                 };
@@ -232,9 +268,9 @@ namespace RevitMCPCommandSet.Services
                 Result = new AIResult<List<int>>
                 {
                     Success = false,
-                    Message = $"创建点状构件时出错: {ex.Message}",
+                    Message = $"Error creating point-based element: {ex.Message}",
                 };
-                TaskDialog.Show("错误", $"创建点状构件时出错: {ex.Message}");
+                TaskDialog.Show("Error", $"Error creating point-based element: {ex.Message}");
             }
             finally
             {
@@ -258,7 +294,7 @@ namespace RevitMCPCommandSet.Services
         /// </summary>
         public string GetName()
         {
-            return "创建点状构件";
+            return "Create point-based element";
         }
 
     }

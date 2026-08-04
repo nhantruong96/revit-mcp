@@ -80,6 +80,7 @@ public class CreateDimensionEventHandler : IExternalEventHandler, IWaitableExter
         try
         {
             var createdDimensionIds = new List<int>();
+            var skipReasons = new List<string>();
 
             // Process each dimension in the list
             foreach (var dimInfo in DimensionsToCreate)
@@ -95,6 +96,16 @@ public class CreateDimensionEventHandler : IExternalEventHandler, IWaitableExter
                 if (view == null)
                 {
                     view = Doc.ActiveView;
+                }
+
+                // Dimensions are view-specific annotation. Attempting this in an unlocked
+                // 3D view used to return "created 0 dimensions" with no explanation.
+                if (!IsDimensionableView(view))
+                {
+                    skipReasons.Add($"View '{view?.Name}' ({view?.ViewType}) cannot host dimensions. "
+                                    + "Use a plan, section, elevation, detail or drafting view; "
+                                    + "a 3D view works only while locked.");
+                    continue;
                 }
 
                 using (var transaction = new Transaction(Doc, "Create Dimension"))
@@ -203,11 +214,22 @@ public class CreateDimensionEventHandler : IExternalEventHandler, IWaitableExter
                 }
             }
 
-            // Set successful result
+            // Creating nothing is a failure. Returning Success = true with a count of 0
+            // gave callers no idea that anything was wrong.
+            bool anyCreated = createdDimensionIds.Count > 0;
+            string message = anyCreated
+                ? $"Successfully created {createdDimensionIds.Count} dimensions. ElementIds saved in Response."
+                : $"Created no dimensions out of {DimensionsToCreate.Count} requested.";
+
+            if (skipReasons.Count > 0)
+            {
+                message += "\n  • " + string.Join("\n  • ", skipReasons.Distinct());
+            }
+
             Result = new AIResult<List<int>>
             {
-                Success = true,
-                Message = $"Successfully created {createdDimensionIds.Count} dimensions. ElementIds saved in Response.",
+                Success = anyCreated,
+                Message = message,
                 Response = createdDimensionIds
             };
         }
@@ -475,6 +497,31 @@ public class CreateDimensionEventHandler : IExternalEventHandler, IWaitableExter
     /// </summary>
     /// <param name="dimension">Dimension instance</param>
     /// <param name="dimensionInfo">Dimension information</param>
+    /// <summary>
+    ///     Whether the view can host dimensions. A 3D view qualifies only while locked.
+    /// </summary>
+    private bool IsDimensionableView(View view)
+    {
+        if (view == null || view.IsTemplate) return false;
+
+        if (view is View3D view3D) return view3D.IsLocked;
+
+        switch (view.ViewType)
+        {
+            case ViewType.FloorPlan:
+            case ViewType.CeilingPlan:
+            case ViewType.EngineeringPlan:
+            case ViewType.AreaPlan:
+            case ViewType.Section:
+            case ViewType.Elevation:
+            case ViewType.Detail:
+            case ViewType.DraftingView:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private void ApplyDimensionParameters(Dimension dimension, DimensionCreationInfo dimensionInfo)
     {
         if (dimensionInfo.Options == null) return;

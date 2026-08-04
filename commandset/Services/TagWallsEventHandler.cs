@@ -41,6 +41,22 @@ namespace RevitMCPCommandSet.Services
             {
                 View activeView = doc.ActiveView;
 
+                // Revit only accepts tags in annotation-capable views. In an unlocked 3D view
+                // every IndependentTag.Create call fails with "ownerDBViewId is not locked",
+                // which used to surface as 58 identical low-level errors instead of one
+                // actionable message. Fail fast with an explanation instead.
+                if (!IsTaggableView(activeView))
+                {
+                    TaggingResults = new
+                    {
+                        success = false,
+                        message = $"Cannot tag walls: the current view '{activeView.Name}' ({activeView.ViewType}) does not accept tags. "
+                                  + "Switch to a plan, section, elevation or drafting view, then run this command again. "
+                                  + "A 3D view can only host tags while it is locked."
+                    };
+                    return;
+                }
+
                 // Get all walls in the current view
                 FilteredElementCollector wallCollector = new FilteredElementCollector(doc, activeView.Id);
                 ICollection<Element> walls = wallCollector.OfCategory(BuiltInCategory.OST_Walls)
@@ -51,7 +67,7 @@ namespace RevitMCPCommandSet.Services
                 List<object> createdTags = new List<object>();
                 List<string> errors = new List<string>();
 
-                using (Transaction tran = new Transaction(doc, "标记墙体"))
+                using (Transaction tran = new Transaction(doc, "Tag walls"))
                 {
                     tran.Start();
 
@@ -63,7 +79,7 @@ namespace RevitMCPCommandSet.Services
                         TaggingResults = new
                         {
                             success = false,
-                            message = "没有找到墙标记族类型"
+                            message = "No wall tag family type was found in this project."
                         };
                         tran.RollBack();
                         return;
@@ -120,7 +136,7 @@ namespace RevitMCPCommandSet.Services
                         }
                         catch (Exception ex)
                         {
-                            errors.Add($"标记墙体 {wall.Id.Value} 出错: {ex.Message}");
+                            errors.Add($"Error tagging wall {wall.Id.Value}: {ex.Message}");
                         }
 #else
 try
@@ -163,7 +179,7 @@ try
                         }
                         catch (Exception ex)
                         {
-                            errors.Add($"标记墙体 {wall.Id.IntegerValue} 出错: {ex.Message}");
+                            errors.Add($"Error tagging wall {wall.Id.IntegerValue}: {ex.Message}");
                         }
 #endif
                     }
@@ -182,11 +198,11 @@ try
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("错误", $"标记墙体时出错: {ex.Message}");
+                TaskDialog.Show("Error", $"Error tagging walls: {ex.Message}");
                 TaggingResults = new
                 {
                     success = false,
-                    message = $"发生错误: {ex.Message}"
+                    message = $"Error tagging walls: {ex.Message}"
                 };
             }
             finally
@@ -211,12 +227,39 @@ try
         /// </summary>
         public string GetName()
         {
-            return "标记墙";
+            return "Tag walls";
         }
 
         /// <summary>
         /// Find the wall tag type in the document
         /// </summary>
+        /// <summary>
+        /// Whether the view can host IndependentTag instances. A 3D view qualifies only
+        /// while it is locked, which is the constraint behind Revit's
+        /// "ownerDBViewId is not locked" error.
+        /// </summary>
+        private bool IsTaggableView(View view)
+        {
+            if (view == null || view.IsTemplate) return false;
+
+            if (view is View3D view3D) return view3D.IsLocked;
+
+            switch (view.ViewType)
+            {
+                case ViewType.FloorPlan:
+                case ViewType.CeilingPlan:
+                case ViewType.EngineeringPlan:
+                case ViewType.AreaPlan:
+                case ViewType.Section:
+                case ViewType.Elevation:
+                case ViewType.Detail:
+                case ViewType.DraftingView:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         private FamilySymbol FindWallTagType(Document doc)
         {
 #if REVIT2024_OR_GREATER
