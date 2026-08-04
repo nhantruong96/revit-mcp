@@ -1,11 +1,8 @@
-using RevitMCPCommandSet.Models.Common;
-using RevitMCPCommandSet.Models.Structure;
-
-#if REVIT2023_OR_GREATER
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
+using RevitMCPCommandSet.Models.Common;
+using RevitMCPCommandSet.Models.Structure;
 using RevitMCPCommandSet.Utils;
-#endif
 
 namespace RevitMCPCommandSet.Services.Structure
 {
@@ -17,7 +14,6 @@ namespace RevitMCPCommandSet.Services.Structure
     {
         public override string GetName() => "Create Line Load";
 
-#if REVIT2023_OR_GREATER
         protected override AIResult<List<StructuralCreationResult>> Run()
         {
             if (!Parameters.Validate(out string validationError))
@@ -42,16 +38,9 @@ namespace RevitMCPCommandSet.Services.Structure
                 throw new ArgumentException($"Element {item.HostElementId} cannot host a line load");
 
             Line curve = StructuralAnalysisUtils.BuildLine(item.StartPoint, item.EndPoint);
-
-            var load = LineLoad.Create(
-                doc,
-                hostId,
-                curve,
-                ToLinearForce(item.Force),
-                ToLinearMoment(item.Moment),
-                symbol);
-
             var notes = new List<string>();
+
+            LineLoad load = Place(hostId, curve, ToLinearForce(item.Force), ToLinearMoment(item.Moment), symbol, notes);
 
             string common = StructuralAnalysisUtils.ApplyCommonLoadSettings(doc, load, item);
             if (!string.IsNullOrEmpty(common))
@@ -81,6 +70,27 @@ namespace RevitMCPCommandSet.Services.Structure
             return (load, notes.Count == 0 ? null : string.Join("; ", notes));
         }
 
+        /// <summary>
+        /// Revit 2024 introduced the overload that takes a host and an explicit curve together.
+        /// On 2023 a hosted load spans the whole host, and a free-standing one needs a sketch
+        /// plane containing the line.
+        /// </summary>
+        private LineLoad Place(
+            ElementId hostId, Line curve, XYZ force, XYZ moment, LineLoadType symbol, List<string> notes)
+        {
+#if REVIT2024_OR_GREATER
+            return LineLoad.Create(doc, hostId, curve, force, moment, symbol);
+#else
+            if (hostId == ElementId.InvalidElementId)
+                return LineLoad.Create(
+                    doc, curve.GetEndPoint(0), curve.GetEndPoint(1), force, moment, symbol,
+                    StructuralAnalysisUtils.CreateSketchPlaneContaining(doc, curve.GetEndPoint(0), curve.GetEndPoint(1)));
+
+            notes.Add("this Revit version spans hosted line loads across the whole host, so startPoint/endPoint were ignored");
+            return LineLoad.Create(doc, hostId, force, moment, symbol);
+#endif
+        }
+
         /// <summary>kN/m -> internal linear force vector.</summary>
         private static XYZ ToLinearForce(LoadVector vector)
         {
@@ -102,6 +112,5 @@ namespace RevitMCPCommandSet.Services.Structure
                 StructuralAnalysisUtils.LinearMomentToInternal(vector.Y),
                 StructuralAnalysisUtils.LinearMomentToInternal(vector.Z));
         }
-#endif
     }
 }

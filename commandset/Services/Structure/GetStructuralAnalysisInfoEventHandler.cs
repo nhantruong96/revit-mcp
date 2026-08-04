@@ -1,12 +1,9 @@
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
 using Newtonsoft.Json;
 using RevitMCPCommandSet.Models.Common;
 using RevitMCPCommandSet.Models.Structure;
-
-#if REVIT2023_OR_GREATER
-using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Structure;
 using RevitMCPCommandSet.Utils;
-#endif
 
 namespace RevitMCPCommandSet.Services.Structure
 {
@@ -20,7 +17,6 @@ namespace RevitMCPCommandSet.Services.Structure
     {
         public override string GetName() => "Get Structural Analysis Info";
 
-#if REVIT2023_OR_GREATER
         protected override AIResult<StructuralAnalysisInfo> Run()
         {
             int limit = Parameters.Limit > 0 ? Parameters.Limit : 200;
@@ -157,7 +153,10 @@ namespace RevitMCPCommandSet.Services.Structure
                 ElementId = conditions.Id.GetValue(),
                 Kind = "BoundaryConditions",
                 ConditionType = conditions.GetBoundaryConditionsType().ToString(),
+                // Preset only exists from Revit 2027.
+#if REVIT2027_OR_GREATER
                 Preset = conditions.Preset.ToString(),
+#endif
                 HostElementId = conditions.HostElementId.GetValue()
             };
         }
@@ -234,7 +233,6 @@ namespace RevitMCPCommandSet.Services.Structure
                 return null;
             }
         }
-#endif
     }
 
     /// <summary>

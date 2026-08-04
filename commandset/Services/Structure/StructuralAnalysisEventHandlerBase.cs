@@ -46,16 +46,7 @@ namespace RevitMCPCommandSet.Services.Structure
 
             try
             {
-#if REVIT2023_OR_GREATER
                 Result = Run();
-#else
-                Result = new AIResult<TResponse>
-                {
-                    Success = false,
-                    Message = StructuralAnalysisUtils.UnsupportedVersionMessage,
-                    Response = default
-                };
-#endif
             }
             catch (Exception ex)
             {
@@ -72,12 +63,10 @@ namespace RevitMCPCommandSet.Services.Structure
             }
         }
 
-#if REVIT2023_OR_GREATER
         /// <summary>
         /// Do the actual work. Runs on Revit's API thread inside the external event.
         /// </summary>
         protected abstract AIResult<TResponse> Run();
-#endif
 
         public bool WaitForCompletion(int timeoutMilliseconds = 10000)
         {
@@ -94,7 +83,6 @@ namespace RevitMCPCommandSet.Services.Structure
     public abstract class StructuralCreationEventHandlerBase<TParameters>
         : StructuralAnalysisEventHandlerBase<TParameters, List<StructuralCreationResult>>
     {
-#if REVIT2023_OR_GREATER
         /// <summary>
         /// Create every item in one transaction, isolating each behind a sub-transaction so a
         /// single bad item is reported against its own index and rolled back without taking
@@ -190,6 +178,5 @@ namespace RevitMCPCommandSet.Services.Structure
                 return null;
             }
         }
-#endif
     }
 }

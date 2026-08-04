@@ -5,7 +5,7 @@ import { pointSchema, sendStructuralCommand } from "../utils/StructuralSchemas.j
 export function registerCreateAnalyticalLinkTool(server: McpServer) {
   server.tool(
     "create_analytical_link",
-    "Create analytical links joining two analytical hubs. Hubs are the connection points Revit maintains at the ends of analytical elements, so the analytical members or panels must already exist. Address hubs by element id, or give the point each hub sits at and it will be located within a tolerance. Use get_structural_analysis_info with include=['hubs'] to list hub ids. Requires Revit 2023 or later.",
+    "Create analytical links joining two analytical hubs. Hubs are the connection points Revit maintains at the ends of analytical elements, so the analytical members or panels must already exist. Address hubs by element id, or give the point each hub sits at and it will be located within a tolerance. Use get_structural_analysis_info with include=['hubs'] to list hub ids.",
     {
       data: z
         .array(

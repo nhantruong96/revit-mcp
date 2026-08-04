@@ -28,7 +28,7 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
 ## Requirements
 
 - **Node.js 18+** (for the MCP server)
-- **Autodesk Revit 2020 - 2027** (any supported version)
+- **Autodesk Revit 2023 - 2027** (any supported version)
 
 ## Quick Start (Using a Release)
 
@@ -170,9 +170,9 @@ If using a release ZIP, the command set is pre-installed inside the plugin. For 
 | `send_code_to_revit` | Send C# code to Revit to execute |
 | `say_hello` | Display a greeting dialog in Revit (connection test) |
 
-### Structural analysis (Revit 2023+)
+### Structural analysis
 
-These tools drive the standalone analytical model Revit introduced in 2023, which is authored independently of the physical model. On Revit 2022 and earlier the analytical model is derived from physical elements and cannot be authored directly, so these tools report that instead of running.
+These tools drive the standalone analytical model Revit introduced in 2023, which is authored independently of the physical model. This is the reason Revit 2023 is the project's minimum supported version.
 
 Lengths are in millimetres, forces in kN, moments in kN·m, line loads in kN/m and area loads in kN/m². Start with `get_structural_analysis_info` — the other tools take element ids (load cases, host elements, hubs, load symbols) and that is where they come from.
 
@@ -190,6 +190,17 @@ Lengths are in millimetres, forces in kN, moments in kN·m, line loads in kN/m a
 | `create_load_combination` | Create load combinations from factored cases or nested combinations |
 
 Every creation tool takes a `data` array and reports per-item results, so one bad item is rolled back and reported against its index without losing the rest of the batch.
+
+**Geometry precision varies by Revit version.** The API for placing supports and hosted loads on explicit geometry arrived gradually, so on older releases some geometry is derived from the host instead. The tools still work — they just say what they did in the item's `message`:
+
+| | Revit 2023 | Revit 2024–2026 | Revit 2027 |
+| --- | --- | --- | --- |
+| Hosted point load | snapped to nearest host end | exact point | exact point |
+| Hosted line / area load | spans whole host | exact geometry | exact geometry |
+| Point support | snapped to nearest host end | snapped to nearest host end | exact point |
+| Line / area support | spans whole host | spans whole host | exact geometry |
+
+Free-standing (unhosted) loads keep their exact geometry on every supported version.
 
 Newly added commands default to disabled — after updating the command set, enable them in the Revit plugin's **Command Set settings** page.
 
@@ -291,9 +302,9 @@ The server compiles TypeScript to `server/build/`. During development you can ru
 
 ### Revit Plugin + Command Set
 
-Open `mcp-servers-for-revit.sln` in Visual Studio. The solution contains both the plugin and command set projects. Build configurations target Revit 2020-2027:
+Open `mcp-servers-for-revit.sln` in Visual Studio. The solution contains both the plugin and command set projects. Build configurations target Revit 2023-2027:
 
-- **Revit 2020-2024**: .NET Framework 4.8 (`Release R20` through `Release R24`)
+- **Revit 2023-2024**: .NET Framework 4.8 (`Release R23`, `Release R24`)
 - **Revit 2025-2026**: .NET 8 (`Release R25`, `Release R26`)
 - **Revit 2027**: .NET 10 (`Release R27`)
 
@@ -319,7 +330,7 @@ mcp-servers-for-revit/
 
 A single `v*` tag drives the entire release. The [release workflow](.github/workflows/release.yml) automatically:
 
-- Builds the Revit plugin + command set for Revit 2020-2027
+- Builds the Revit plugin + command set for Revit 2023-2027
 - Creates a GitHub release with `mcp-servers-for-revit-vX.Y.Z-Revit<year>.zip` assets
 - Publishes the MCP server to npm as [`mcp-server-for-revit`](https://www.npmjs.com/package/mcp-server-for-revit)
 

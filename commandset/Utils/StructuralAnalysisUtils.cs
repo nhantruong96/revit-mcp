@@ -1,29 +1,16 @@
 using Autodesk.Revit.DB;
-using RevitMCPCommandSet.Models.Common;
-
-#if REVIT2023_OR_GREATER
 using Autodesk.Revit.DB.Structure;
+using RevitMCPCommandSet.Models.Common;
 using RevitMCPCommandSet.Models.Structure;
-#endif
 
 namespace RevitMCPCommandSet.Utils
 {
     /// <summary>
     /// Shared helpers for the structural analysis command set (analytical model, loads,
-    /// boundary conditions). The analytical members/panels API used here is the one
-    /// Revit 2023 introduced when the analytical model was split from the physical model,
-    /// so everything is compiled out for older configurations.
+    /// boundary conditions).
     /// </summary>
     public static class StructuralAnalysisUtils
     {
-        /// <summary>
-        /// Message returned by every analysis handler when the add-in runs on a Revit
-        /// release that predates the standalone analytical model.
-        /// </summary>
-        public const string UnsupportedVersionMessage =
-            "Structural analysis commands require Revit 2023 or later. Revit 2022 and earlier " +
-            "derive the analytical model from physical elements, so it cannot be authored directly.";
-
         /// <summary>
         /// Millimetres per foot - Revit stores lengths in feet, the MCP tools speak millimetres.
         /// </summary>
@@ -38,8 +25,6 @@ namespace RevitMCPCommandSet.Utils
 
         public static JZPoint ToJZPoint(XYZ point) =>
             new JZPoint(FeetToMm(point.X), FeetToMm(point.Y), FeetToMm(point.Z));
-
-#if REVIT2023_OR_GREATER
 
         // ---------------------------------------------------------------------
         // Unit conversion. The tools take engineering units (kN, kN*m, kN/m,
@@ -149,6 +134,32 @@ namespace RevitMCPCommandSet.Utils
 
             return loop;
         }
+
+#if !REVIT2024_OR_GREATER
+        /// <summary>
+        /// Revit 2023 places a free-standing load on a sketch plane rather than taking the
+        /// geometry directly, so one has to be made for it. Any plane through the point does.
+        /// </summary>
+        public static SketchPlane CreateSketchPlaneThrough(Document doc, XYZ origin)
+        {
+            return SketchPlane.Create(doc, Plane.CreateByNormalAndOrigin(XYZ.BasisZ, origin));
+        }
+
+        /// <summary>
+        /// As above, but the plane has to contain the whole line, so its normal is taken
+        /// perpendicular to the line's direction.
+        /// </summary>
+        public static SketchPlane CreateSketchPlaneContaining(Document doc, XYZ start, XYZ end)
+        {
+            XYZ direction = (end - start).Normalize();
+
+            // Any vector not parallel to the line works as the second in-plane direction.
+            XYZ helper = Math.Abs(direction.DotProduct(XYZ.BasisZ)) < 0.9 ? XYZ.BasisZ : XYZ.BasisX;
+            XYZ normal = direction.CrossProduct(helper).Normalize();
+
+            return SketchPlane.Create(doc, Plane.CreateByNormalAndOrigin(normal, start));
+        }
+#endif
 
         // ---------------------------------------------------------------------
         // Element lookup
@@ -317,8 +328,6 @@ namespace RevitMCPCommandSet.Utils
             throw new ArgumentException(
                 $"'{value}' is not a valid {typeof(TEnum).Name}. Valid values: {string.Join(", ", Enum.GetNames(typeof(TEnum)))}");
         }
-
-#endif
 
         /// <summary>
         /// Construct an ElementId from a numeric id across the 2024 signature change.

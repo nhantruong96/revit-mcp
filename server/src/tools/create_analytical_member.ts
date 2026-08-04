@@ -5,7 +5,7 @@ import { pointSchema, sendStructuralCommand } from "../utils/StructuralSchemas.j
 export function registerCreateAnalyticalMemberTool(server: McpServer) {
   server.tool(
     "create_analytical_member",
-    "Create analytical members - the analytical beams, columns and braces of Revit's standalone analytical model. These are analysis elements in their own right, not the analytical representation of a physical beam. Coordinates are in millimetres. Requires Revit 2023 or later.",
+    "Create analytical members - the analytical beams, columns and braces of Revit's standalone analytical model. These are analysis elements in their own right, not the analytical representation of a physical beam. Coordinates are in millimetres.",
     {
       data: z
         .array(

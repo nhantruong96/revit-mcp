@@ -10,7 +10,7 @@ import {
 export function registerCreateLineLoadTool(server: McpServer) {
   server.tool(
     "create_line_load",
-    "Create line loads - forces and moments distributed along a line. Points are in millimetres, force in kN/m and moment in kN*m/m; a downward gravity load is a negative Z force. Supplying forceEnd or momentEnd makes the load trapezoidal instead of uniform. At least one of force or moment must be non-zero. Requires Revit 2023 or later.",
+    "Create line loads - forces and moments distributed along a line. Points are in millimetres, force in kN/m and moment in kN*m/m; a downward gravity load is a negative Z force. Supplying forceEnd or momentEnd makes the load trapezoidal instead of uniform. At least one of force or moment must be non-zero.",
     {
       data: z
         .array(

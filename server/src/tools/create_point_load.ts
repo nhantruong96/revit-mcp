@@ -10,7 +10,7 @@ import {
 export function registerCreatePointLoadTool(server: McpServer) {
   server.tool(
     "create_point_load",
-    "Create point loads - concentrated forces and moments. The point is in millimetres, force in kN and moment in kN*m; a downward gravity load is a negative Z force. At least one of force or moment must be non-zero. Requires Revit 2023 or later.",
+    "Create point loads - concentrated forces and moments. The point is in millimetres, force in kN and moment in kN*m; a downward gravity load is a negative Z force. At least one of force or moment must be non-zero.",
     {
       data: z
         .array(

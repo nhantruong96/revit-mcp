@@ -1,11 +1,8 @@
-using RevitMCPCommandSet.Models.Common;
-using RevitMCPCommandSet.Models.Structure;
-
-#if REVIT2023_OR_GREATER
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
+using RevitMCPCommandSet.Models.Common;
+using RevitMCPCommandSet.Models.Structure;
 using RevitMCPCommandSet.Utils;
-#endif
 
 namespace RevitMCPCommandSet.Services.Structure
 {
@@ -19,7 +16,6 @@ namespace RevitMCPCommandSet.Services.Structure
     {
         public override string GetName() => "Create Analytical Link";
 
-#if REVIT2023_OR_GREATER
         protected override AIResult<List<StructuralCreationResult>> Run()
         {
             if (!Parameters.Validate(out string validationError))
@@ -97,6 +93,5 @@ namespace RevitMCPCommandSet.Services.Structure
 
             return StructuralAnalysisUtils.ResolveLoadType<AnalyticalLinkType>(doc, item.LinkTypeName).Id;
         }
-#endif
     }
 }

@@ -10,7 +10,7 @@ import {
 export function registerCreateAreaLoadTool(server: McpServer) {
   server.tool(
     "create_area_load",
-    "Create area loads - pressures over a closed outline. The boundary is in millimetres and must be closed, planar and non-self-intersecting; the closing point may be omitted. Force is in kN/m2; a downward gravity load is a negative Z force. Requires Revit 2023 or later.",
+    "Create area loads - pressures over a closed outline. The boundary is in millimetres and must be closed, planar and non-self-intersecting; the closing point may be omitted. Force is in kN/m2; a downward gravity load is a negative Z force.",
     {
       data: z
         .array(

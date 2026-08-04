@@ -5,7 +5,7 @@ import { sendStructuralCommand } from "../utils/StructuralSchemas.js";
 export function registerCreateLoadCombinationTool(server: McpServer) {
   server.tool(
     "create_load_combination",
-    "Create load combinations from factored load cases or nested combinations, e.g. '1.2DL + 1.6LL'. Components are matched by element id or by name against both load cases and existing combinations. Load usages named here are created when missing. Requires Revit 2023 or later.",
+    "Create load combinations from factored load cases or nested combinations, e.g. '1.2DL + 1.6LL'. Components are matched by element id or by name against both load cases and existing combinations. Load usages named here are created when missing.",
     {
       data: z
         .array(

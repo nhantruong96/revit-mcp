@@ -5,7 +5,7 @@ import { sendStructuralCommand } from "../utils/StructuralSchemas.js";
 export function registerCreateLoadCaseTool(server: McpServer) {
   server.tool(
     "create_load_case",
-    "Create structural load cases. The load nature a case belongs to is created automatically when the model does not have it yet, defaulting to the category name. Create the cases before the loads that reference them. Requires Revit 2023 or later.",
+    "Create structural load cases. The load nature a case belongs to is created automatically when the model does not have it yet, defaulting to the category name. Create the cases before the loads that reference them.",
     {
       data: z
         .array(

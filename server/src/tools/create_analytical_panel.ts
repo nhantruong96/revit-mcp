@@ -5,7 +5,7 @@ import { pointSchema, sendStructuralCommand } from "../utils/StructuralSchemas.j
 export function registerCreateAnalyticalPanelTool(server: McpServer) {
   server.tool(
     "create_analytical_panel",
-    "Create analytical panels - the analytical floors, walls and foundation slabs of Revit's standalone analytical model. The boundary must be closed and planar; the closing point may be omitted. Coordinates and thickness are in millimetres. Requires Revit 2023 or later.",
+    "Create analytical panels - the analytical floors, walls and foundation slabs of Revit's standalone analytical model. The boundary must be closed and planar; the closing point may be omitted. Coordinates and thickness are in millimetres.",
     {
       data: z
         .array(

@@ -10,7 +10,7 @@ const dofSchema = z
 export function registerCreateBoundaryConditionsTool(server: McpServer) {
   server.tool(
     "create_boundary_conditions",
-    "Create boundary conditions (supports) on analytical elements. A support must be hosted, so pass the analytical element id it attaches to - get_structural_analysis_info lists them. Use preset Fixed, Pinned or Roller for the common cases, or User with the six degree-of-freedom fields. Geometry is in millimetres. Spring stiffness units depend on the support: kN/m and kN*m/deg for point, kN/m/m and kN*m/deg/m for line, kN/m/m2 for area. A line support only exposes the rotation about its own axis, and an area support has no rotational freedoms. Requires Revit 2023 or later.",
+    "Create boundary conditions (supports) on analytical elements. A support must be hosted, so pass the analytical element id it attaches to - get_structural_analysis_info lists them. Use preset Fixed, Pinned or Roller for the common cases, or User with the six degree-of-freedom fields. Geometry is in millimetres. Spring stiffness units depend on the support: kN/m and kN*m/deg for point, kN/m/m and kN*m/deg/m for line, kN/m/m2 for area. A line support only exposes the rotation about its own axis, and an area support has no rotational freedoms.",
     {
       data: z
         .array(
