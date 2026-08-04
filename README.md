@@ -168,6 +168,7 @@ If using a release ZIP, the command set is pre-installed inside the plugin. For 
 | `store_project_data` | Store project metadata in local database |
 | `store_room_data` | Store room metadata in local database |
 | `query_stored_data` | Query stored project and room data |
+| `delete_stored_project` | Delete a stored project and its rooms from the local database (requires `confirm: true`) |
 | `send_code_to_revit` | Send C# code to Revit to execute |
 | `say_hello` | Display a greeting dialog in Revit (connection test) |
 

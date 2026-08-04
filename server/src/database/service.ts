@@ -264,6 +264,40 @@ export function deleteProject(projectId: number): boolean {
   return result.changes > 0;
 }
 
+// Every project sharing a name. storeProject upserts by name, so this is normally 0 or 1,
+// but nothing in the schema enforces uniqueness - callers must cope with several.
+export function getProjectsByName(projectName: string) {
+  return db.prepare(
+    'SELECT id, project_name FROM projects WHERE project_name = ?'
+  ).all(projectName) as Array<{ id: number; project_name: string }>;
+}
+
+// Delete a project and report exactly what went with it. Rooms vanish through the
+// ON DELETE CASCADE, so they are counted first: a caller that only sees "project deleted"
+// has no idea how much room data went too. Returns null when the id does not exist.
+export function deleteProjectDetailed(projectId: number) {
+  const project = db.prepare(
+    'SELECT id, project_name FROM projects WHERE id = ?'
+  ).get(projectId) as { id: number; project_name: string } | undefined;
+
+  if (!project) return null;
+
+  const rooms = db.prepare(
+    'SELECT COUNT(*) as count FROM rooms WHERE project_id = ?'
+  ).get(projectId) as { count: number };
+
+  const changes = db.transaction(() =>
+    db.prepare('DELETE FROM projects WHERE id = ?').run(projectId).changes
+  )();
+
+  return {
+    deleted: changes > 0,
+    project_id: project.id,
+    project_name: project.project_name,
+    rooms_deleted: changes > 0 ? rooms.count : 0
+  };
+}
+
 // Get database statistics
 export function getStats() {
   const projectCount = db.prepare('SELECT COUNT(*) as count FROM projects').get() as { count: number };
