@@ -15,17 +15,32 @@ namespace revit_mcp_plugin.Core
                 // 获取socket服务
                 // Obtain socket service.
                 SocketService service = SocketService.Instance;
+                bool wasRunning = service.IsRunning;
 
-                if (service.IsRunning)
+                if (wasRunning)
                 {
                     service.Stop();
-                    TaskDialog.Show("revitMCP", "Close Server");
                 }
                 else
                 {
                     service.Initialize(commandData.Application);
                     service.Start();
-                    TaskDialog.Show("revitMCP", "Open Server");
+                }
+
+                // Read the state back instead of assuming the toggle worked. Start() swallows
+                // its exceptions and leaves the service stopped, so a port already taken by
+                // another Revit session used to pop up "Open Server" while nothing listened.
+                bool isRunning = service.IsRunning;
+                Application.SetServiceState(isRunning, service.Port);
+
+                // The button now carries the state, so the old confirmation dialog on every
+                // click was just noise. Only speak up when the outcome is not what was asked.
+                if (!wasRunning && !isRunning)
+                {
+                    TaskDialog.Show("Revit MCP",
+                        $"The MCP server could not start.\n\nPort {service.Port} is most likely already in use - "
+                        + "by another Revit session running this add-in, or another application. "
+                        + "Close it and try again.");
                 }
 
                 return Result.Succeeded;
