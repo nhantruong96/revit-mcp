@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Newtonsoft.Json;
 using RevitMCPSDK.API.Interfaces;
+using RevitMCPCommandSet.Utils;
 
 namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
 {
@@ -67,6 +68,7 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
                     using (var transaction = new Transaction(doc, "Execute AI code"))
                     {
                         transaction.Start();
+                        transaction.SuppressRevitDialogs();
 
                         result = CompileAndExecuteCode(
                             code: _generatedCode,

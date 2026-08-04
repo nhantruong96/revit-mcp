@@ -86,6 +86,7 @@ namespace RevitMCPCommandSet.Services
                 using (Transaction trans = new Transaction(doc, "Create Beam System"))
                 {
                     trans.Start();
+                    trans.SuppressRevitDialogs();
 
                     // 1. Resolve Level - an explicitly named level always wins. Only fall back
                     //    to "nearest level to the target elevation" when no name was given.

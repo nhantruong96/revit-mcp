@@ -188,6 +188,7 @@ namespace RevitMCPCommandSet.Services
                 using (Transaction transaction = new Transaction(doc, "Color Splash"))
                 {
                     transaction.Start();
+                    transaction.SuppressRevitDialogs();
 
                     // Get solid fill pattern
                     ElementId solidFillPatternId = GetSolidFillPatternId();

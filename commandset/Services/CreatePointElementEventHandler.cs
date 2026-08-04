@@ -137,6 +137,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction transaction = new Transaction(doc, "Create point-based element"))
                     {
                         transaction.Start();
+                        transaction.SuppressRevitDialogs();
 
                         if (!symbol.IsActive)
                             symbol.Activate();

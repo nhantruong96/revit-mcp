@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using RevitMCPCommandSet.Utils;
 
 namespace RevitMCPCommandSet.Services
 {
@@ -198,13 +199,20 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Create section box"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         targetView.IsSectionBoxActive = true;
                         targetView.SetSectionBox(boundingBox);
                         trans.Commit();
                     }
 
                     // 移动到视图中心
-                    uidoc.ShowElements(elementIds);
+                    using (var dialogs = new DialogSuppressionScope(uidoc.Application))
+                    {
+                        // ShowElements raises a modal "there is no open view that shows any of
+                        // the highlighted elements" prompt when nothing on screen contains them.
+                        // Left alone it blocks the external event until the command times out.
+                        uidoc.ShowElements(elementIds);
+                    }
                     return true;
 
                 case ElementOperationType.SetColor:
@@ -212,11 +220,18 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Set element colour"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         SetElementsColor(doc, elementIds, setting.ColorValue);
                         trans.Commit();
                     }
                     // 滚动到这些元素使其可见
-                    uidoc.ShowElements(elementIds);
+                    using (var dialogs = new DialogSuppressionScope(uidoc.Application))
+                    {
+                        // ShowElements raises a modal "there is no open view that shows any of
+                        // the highlighted elements" prompt when nothing on screen contains them.
+                        // Left alone it blocks the external event until the command times out.
+                        uidoc.ShowElements(elementIds);
+                    }
                     return true;
 
 
@@ -225,6 +240,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Set element transparency"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
 
                         // 创建图形覆盖设置对象
                         OverrideGraphicSettings overrideSettings = new OverrideGraphicSettings();
@@ -250,6 +266,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Delete elements"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         doc.Delete(elementIds);
                         trans.Commit();
                     }
@@ -260,6 +277,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Hide elements"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         doc.ActiveView.HideElements(elementIds);
                         trans.Commit();
                     }
@@ -270,6 +288,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Temporarily hide elements"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         doc.ActiveView.HideElementsTemporary(elementIds);
                         trans.Commit();
                     }
@@ -280,6 +299,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Isolate elements"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         doc.ActiveView.IsolateElementsTemporary(elementIds);
                         trans.Commit();
                     }
@@ -290,6 +310,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Unhide elements"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         doc.ActiveView.UnhideElements(elementIds);
                         trans.Commit();
                     }
@@ -300,6 +321,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction trans = new Transaction(doc, "Reset isolation"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         doc.ActiveView.DisableTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate);
                         trans.Commit();
                     }

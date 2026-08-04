@@ -94,19 +94,22 @@ namespace RevitMCPCommandSet.Services.Architecture
                     }
                 }
 
+                // Warnings Revit raised and we suppressed. Hiding the dialog is only half the
+                // job; a room that landed outside a closed boundary must still be reported.
+                List<string> suppressedWarnings = new List<string>();
+
                 foreach (var roomInfo in RoomData)
                 {
                     using (Transaction tx = new Transaction(_doc, "Create Room"))
                     {
-                        // Set up failure handling to completely suppress duplicate room number warnings
-                        // Revit auto-assigns numbers which may conflict; we set unique numbers afterwards
-                        FailureHandlingOptions failureOptions = tx.GetFailureHandlingOptions();
-                        failureOptions.SetFailuresPreprocessor(new DuplicateRoomNumberFailurePreprocessor());
-                        failureOptions.SetClearAfterRollback(true);
-                        failureOptions.SetDelayedMiniWarnings(false);
-                        tx.SetFailureHandlingOptions(failureOptions);
-
                         tx.Start();
+
+                        // Suppress every warning, not only the duplicate-number ones. The previous
+                        // preprocessor matched on the words "number" and "duplicate", so a room
+                        // placed outside a closed boundary still raised the modal
+                        // "Room is not in a properly enclosed region" dialog - which nobody is
+                        // there to dismiss, so the external event stalled until the call timed out.
+                        McpFailurePreprocessor roomFailures = tx.SuppressRevitDialogs();
 
                         // Step 1: Find or determine the level
                         Level level = null;
@@ -247,6 +250,8 @@ namespace RevitMCPCommandSet.Services.Architecture
 
                         tx.Commit();
 
+                        suppressedWarnings.AddRange(roomFailures.Messages);
+
                         // Add to result list
                         createdRooms.Add(new RoomResultInfo
                         {
@@ -262,10 +267,16 @@ namespace RevitMCPCommandSet.Services.Architecture
                     }
                 }
 
+                string roomMessage = $"Successfully created {createdRooms.Count} room(s)";
+                if (suppressedWarnings.Count > 0)
+                {
+                    roomMessage += "\n\n⚠ Warnings:\n  • " + string.Join("\n  • ", suppressedWarnings.Distinct());
+                }
+
                 Result = new AIResult<List<RoomResultInfo>>
                 {
                     Success = true,
-                    Message = $"Successfully created {createdRooms.Count} room(s)",
+                    Message = roomMessage,
                     Response = createdRooms
                 };
             }

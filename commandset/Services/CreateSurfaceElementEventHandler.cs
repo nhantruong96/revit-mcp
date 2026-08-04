@@ -222,6 +222,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction transaction = new Transaction(doc, "Create surface-based element"))
                     {
                         transaction.Start();
+                        transaction.SuppressRevitDialogs();
 
                         switch (builtInCategory)
                         {

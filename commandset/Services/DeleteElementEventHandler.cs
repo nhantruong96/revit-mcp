@@ -1,6 +1,7 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using RevitMCPSDK.API.Interfaces;
+using RevitMCPCommandSet.Utils;
 
 namespace RevitMCPCommandSet.Services
 {
@@ -62,6 +63,7 @@ namespace RevitMCPCommandSet.Services
                     using (var transaction = new Transaction(doc, "Delete Elements"))
                     {
                         transaction.Start();
+                        transaction.SuppressRevitDialogs();
 
                         // 批量删除元素
                         ICollection<ElementId> deletedIds = doc.Delete(elementIdsToDelete);

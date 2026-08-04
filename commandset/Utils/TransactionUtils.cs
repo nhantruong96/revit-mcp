@@ -40,6 +40,7 @@ public static class TransactionUtils
     {
         using var transaction = new Transaction(doc, transactionName);
         transaction.Start();
+        transaction.SuppressRevitDialogs();
         try
         {
             var result = action();
@@ -63,6 +64,7 @@ public static class TransactionUtils
     {
         using var transaction = new Transaction(doc, transactionName);
         transaction.Start();
+        transaction.SuppressRevitDialogs();
         try
         {
             action();
@@ -92,6 +94,7 @@ public static class TransactionUtils
 
         using var transaction = new Transaction(doc, transactionName);
         transaction.Start();
+        transaction.SuppressRevitDialogs();
         try
         {
             foreach (var item in items)
@@ -123,6 +126,7 @@ public static class TransactionUtils
     {
         using var transaction = new Transaction(doc, transactionName);
         transaction.Start();
+        transaction.SuppressRevitDialogs();
         try
         {
             foreach (var item in items) actionPerItem(item);
@@ -227,6 +231,7 @@ public static class TransactionUtils
     {
         using var transaction = new Transaction(doc, transactionName);
         transaction.Start();
+        transaction.SuppressRevitDialogs();
         try
         {
             action();

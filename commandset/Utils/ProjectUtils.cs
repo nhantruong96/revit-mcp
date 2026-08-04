@@ -407,6 +407,7 @@ namespace RevitMCPCommandSet.Utils
                     using (Transaction trans = new Transaction(doc, "Create 3D View"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         ViewFamilyType vft = new FilteredElementCollector(doc)
                             .OfClass(typeof(ViewFamilyType))
                             .Cast<ViewFamilyType>()
@@ -524,6 +525,7 @@ namespace RevitMCPCommandSet.Utils
                     using (Transaction trans = new Transaction(doc, "Create 3D View"))
                     {
                         trans.Start();
+                        trans.SuppressRevitDialogs();
                         ViewFamilyType vft = new FilteredElementCollector(doc)
                             .OfClass(typeof(ViewFamilyType))
                             .Cast<ViewFamilyType>()

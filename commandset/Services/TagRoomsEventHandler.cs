@@ -199,14 +199,12 @@ namespace RevitMCPCommandSet.Services
 
                 using (Transaction tran = new Transaction(_doc, "Tag Rooms"))
                 {
-                    // Set up failure handling to completely suppress any room-related warnings
-                    FailureHandlingOptions failureOptions = tran.GetFailureHandlingOptions();
-                    failureOptions.SetFailuresPreprocessor(new TagRoomFailurePreprocessor());
-                    failureOptions.SetClearAfterRollback(true);
-                    failureOptions.SetDelayedMiniWarnings(false);
-                    tran.SetFailureHandlingOptions(failureOptions);
-
                     tran.Start();
+
+                    // Suppress every warning rather than only those mentioning a number or a
+                    // duplicate: any other warning would raise a modal dialog that nobody is
+                    // present to dismiss, stalling the external event until the call times out.
+                    tran.SuppressRevitDialogs();
 
                     // Find the room tag type
                     FamilySymbol roomTagType = FindRoomTagType(_doc);

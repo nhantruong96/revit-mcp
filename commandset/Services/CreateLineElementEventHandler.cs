@@ -187,6 +187,7 @@ namespace RevitMCPCommandSet.Services
                     using (Transaction transaction = new Transaction(doc, "Create point-based element"))
                     {
                         transaction.Start();
+                        transaction.SuppressRevitDialogs();
                         switch (builtInCategory)
                         {
                             case BuiltInCategory.OST_Walls:

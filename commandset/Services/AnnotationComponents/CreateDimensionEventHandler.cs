@@ -111,6 +111,7 @@ public class CreateDimensionEventHandler : IExternalEventHandler, IWaitableExter
                 using (var transaction = new Transaction(Doc, "Create Dimension"))
                 {
                     transaction.Start();
+                    transaction.SuppressRevitDialogs();
 
                     try
                     {

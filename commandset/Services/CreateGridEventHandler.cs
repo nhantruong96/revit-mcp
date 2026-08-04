@@ -3,6 +3,7 @@ using Autodesk.Revit.UI;
 using RevitMCPCommandSet.Models.Architecture;
 using RevitMCPCommandSet.Models.Common;
 using RevitMCPSDK.API.Interfaces;
+using RevitMCPCommandSet.Utils;
 
 namespace RevitMCPCommandSet.Services
 {
@@ -66,6 +67,7 @@ namespace RevitMCPCommandSet.Services
                 using (Transaction trans = new Transaction(doc, "Create Grid System"))
                 {
                     trans.Start();
+                    trans.SuppressRevitDialogs();
 
                     // Create X-axis grids (vertical lines, parallel to Y-axis)
                     List<double> xPositions = GeneratePositions(
