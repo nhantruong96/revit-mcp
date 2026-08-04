@@ -122,6 +122,56 @@
       "commandName": "create_dimensions",
       "description": "Create dimension annotations between elements or points in the current view",
       "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "get_structural_analysis_info",
+      "description": "Read the analytical model: analytical elements, hubs, supports, load cases, combinations and load symbols",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_analytical_member",
+      "description": "Create analytical members (analytical beams, columns and braces)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_analytical_panel",
+      "description": "Create analytical panels (analytical floors, walls and foundation slabs)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_analytical_link",
+      "description": "Create analytical links between analytical hubs",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_boundary_conditions",
+      "description": "Create point, line and area boundary conditions (supports) on analytical elements",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_load_case",
+      "description": "Create structural load cases and their load natures",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_point_load",
+      "description": "Create point loads (concentrated forces and moments)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_line_load",
+      "description": "Create line loads (uniform or trapezoidal distributed loads)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_area_load",
+      "description": "Create area loads (pressures over a closed outline)",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "create_load_combination",
+      "description": "Create load combinations from factored load cases or nested combinations",
+      "assemblyPath": "RevitMCPCommandSet.dll"
     }
   ]
 }

@@ -170,6 +170,29 @@ If using a release ZIP, the command set is pre-installed inside the plugin. For 
 | `send_code_to_revit` | Send C# code to Revit to execute |
 | `say_hello` | Display a greeting dialog in Revit (connection test) |
 
+### Structural analysis (Revit 2023+)
+
+These tools drive the standalone analytical model Revit introduced in 2023, which is authored independently of the physical model. On Revit 2022 and earlier the analytical model is derived from physical elements and cannot be authored directly, so these tools report that instead of running.
+
+Lengths are in millimetres, forces in kN, moments in kN·m, line loads in kN/m and area loads in kN/m². Start with `get_structural_analysis_info` — the other tools take element ids (load cases, host elements, hubs, load symbols) and that is where they come from.
+
+| Tool | Description |
+| ---- | ----------- |
+| `get_structural_analysis_info` | Read the analytical model: analytical elements, hubs, supports, load cases, combinations and load symbols |
+| `create_analytical_member` | Create analytical members (analytical beams, columns and braces) |
+| `create_analytical_panel` | Create analytical panels (analytical floors, walls and foundation slabs) |
+| `create_analytical_link` | Create analytical links between analytical hubs |
+| `create_boundary_conditions` | Create point, line and area boundary conditions (supports) |
+| `create_load_case` | Create load cases, adding their load natures when missing |
+| `create_point_load` | Create point loads (concentrated forces and moments) |
+| `create_line_load` | Create line loads (uniform or trapezoidal) |
+| `create_area_load` | Create area loads (pressures over a closed outline) |
+| `create_load_combination` | Create load combinations from factored cases or nested combinations |
+
+Every creation tool takes a `data` array and reports per-item results, so one bad item is rolled back and reported against its index without losing the rest of the batch.
+
+Newly added commands default to disabled — after updating the command set, enable them in the Revit plugin's **Command Set settings** page.
+
 ## Testing
 
 The test project uses [Nice3point.TUnit.Revit](https://github.com/Nice3point/RevitUnit) to run integration tests against a live Revit instance. No separate addin installation is required — the framework injects into the running Revit process automatically.
