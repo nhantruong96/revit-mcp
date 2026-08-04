@@ -30,7 +30,7 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
 ## Requirements
 
 - **Node.js 18+** (for the MCP server)
-- **Autodesk Revit 2020 - 2026** (any supported version)
+- **Autodesk Revit 2020 - 2027** (any supported version)
 
 ## Quick Start (Using a Release)
 
@@ -61,9 +61,15 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
 
 5. In Revit, click the **Settings** button on the mcp-servers-for-revit ribbon tab, enable the commands you want to use, and click **Save**
 
+6. Click the **Revit MCP Switch** button on the same ribbon panel to start the server — a dialog confirms `Open Server`. The server does not start automatically; without this step the AI client cannot reach Revit.
+
+> **Note:** Enabled commands are loaded when the server starts. If you change which commands are enabled while the server is already running, click **Revit MCP Switch** twice (off, then on) to reload them — otherwise calls fail with `Method '<name>' not found`.
+
 ## MCP Server Setup
 
 The MCP server is published as an npm package and can be run directly with `npx`.
+
+> **Known issue with `npx`:** the currently published version (`1.0.0`) depends on `better-sqlite3` v11, which ships no prebuilt binary for Node 22+. On those versions npm falls back to compiling from source with `node-gyp`, which fails unless Visual Studio with the "Desktop development with C++" workload is installed — the server then exits before it can start. The fix (bumping to `better-sqlite3` v12) is already in this repository but has not been released to npm yet. Until it is, either pin Node 20 or use [Running from source](#running-the-server-from-source) below.
 
 **Claude Code**
 
@@ -91,6 +97,31 @@ Claude Desktop → Settings → Developer → Edit Config → `claude_desktop_co
 Restart Claude Desktop. When you see the hammer icon, the MCP server is connected.
 
 ![Claude Desktop connection](./assets/claude.png)
+
+### Running the server from source
+
+This avoids npm entirely and always matches the code in this repository. Requires **Node.js 20+**.
+
+```bash
+cd server
+npm ci
+npm run build
+```
+
+Then point your client at the built entry point instead of `npx`:
+
+```json
+{
+    "mcpServers": {
+        "mcp-server-for-revit": {
+            "command": "C:\\Program Files\\nodejs\\node.exe",
+            "args": ["C:\\path\\to\\mcp-servers-for-revit\\server\\build\\index.js"]
+        }
+    }
+}
+```
+
+Re-run `npm run build` after changing anything under `server/src/`.
 
 ## Revit Plugin Setup
 
@@ -147,14 +178,17 @@ The test project uses [Nice3point.TUnit.Revit](https://github.com/Nice3point/Rev
 ### Prerequisites
 
 - **.NET 10 SDK** — required by Nice3point.Revit.Sdk 6.1.0. Install via `winget install Microsoft.DotNet.SDK.10`
-- **Autodesk Revit 2026** (or 2025) — must be installed and licensed on your machine
+- **Autodesk Revit 2027** (or 2026 / 2025) — must be installed and licensed on your machine
 
 ### Running Tests
 
-1. Open Revit 2026 (or 2025) and wait for it to fully load
+1. Open Revit 2027 (or 2026 / 2025) and wait for it to fully load
 2. Run the tests from the command line:
 
 ```bash
+# For Revit 2027
+dotnet test -c Debug.R27 -r win-x64 tests/commandset
+
 # For Revit 2026
 dotnet test -c Debug.R26 -r win-x64 tests/commandset
 
@@ -168,7 +202,7 @@ Alternatively, you can use `dotnet run`:
 
 ```bash
 cd tests/commandset
-dotnet run -c Debug.R26
+dotnet run -c Debug.R27
 ```
 
 ### IDE Support
@@ -235,10 +269,11 @@ The server compiles TypeScript to `server/build/`. During development you can ru
 
 ### Revit Plugin + Command Set
 
-Open `mcp-servers-for-revit.sln` in Visual Studio. The solution contains both the plugin and command set projects. Build configurations target Revit 2020-2026:
+Open `mcp-servers-for-revit.sln` in Visual Studio. The solution contains both the plugin and command set projects. Build configurations target Revit 2020-2027:
 
 - **Revit 2020-2024**: .NET Framework 4.8 (`Release R20` through `Release R24`)
 - **Revit 2025-2026**: .NET 8 (`Release R25`, `Release R26`)
+- **Revit 2027**: .NET 10 (`Release R27`)
 
 Building the solution automatically assembles the complete deployable layout in `plugin/bin/AddIn <year> <config>/` - the command set is copied into the plugin's `Commands/` folder as part of the build.
 
@@ -262,7 +297,7 @@ mcp-servers-for-revit/
 
 A single `v*` tag drives the entire release. The [release workflow](.github/workflows/release.yml) automatically:
 
-- Builds the Revit plugin + command set for Revit 2020-2026
+- Builds the Revit plugin + command set for Revit 2020-2027
 - Creates a GitHub release with `mcp-servers-for-revit-vX.Y.Z-Revit<year>.zip` assets
 - Publishes the MCP server to npm as [`mcp-server-for-revit`](https://www.npmjs.com/package/mcp-server-for-revit)
 
