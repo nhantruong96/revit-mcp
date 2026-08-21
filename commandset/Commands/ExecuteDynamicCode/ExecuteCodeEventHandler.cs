@@ -68,7 +68,7 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
                     using (var transaction = new Transaction(doc, "Execute AI code"))
                     {
                         transaction.Start();
-                        transaction.SuppressRevitDialogs();
+                        McpFailurePreprocessor failures = transaction.SuppressRevitDialogs();
 
                         result = CompileAndExecuteCode(
                             code: _generatedCode,
@@ -76,7 +76,18 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
                             parameters: _executionParameters
                         );
 
-                        transaction.Commit();
+                        TransactionStatus status = transaction.Commit();
+                        ResultInfo.RevitMessages.AddRange(failures.Messages);
+
+                        // Commit() does not throw when the preprocessor rolled back; without
+                        // this check the snippet would be reported as a success while the
+                        // model kept nothing of what it did.
+                        if (status != TransactionStatus.Committed)
+                        {
+                            throw new InvalidOperationException(
+                                $"Revit rolled the transaction back ({status}); the code ran but none of its changes were kept. "
+                                + string.Join(" | ", failures.Messages));
+                        }
                     }
                 }
 
@@ -182,5 +193,12 @@ namespace AIGeneratedCode
 
         [JsonProperty("errorMessage")]
         public string ErrorMessage { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Warnings Revit raised during the transaction and the preprocessor swallowed,
+        /// plus errors it resolved. Empty when the transaction ran clean.
+        /// </summary>
+        [JsonProperty("revitMessages")]
+        public List<string> RevitMessages { get; set; } = new List<string>();
     }
 }

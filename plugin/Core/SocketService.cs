@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -109,7 +110,11 @@ namespace revit_mcp_plugin.Core
                 {
                     IsBackground = true
                 };
-                _listenerThread.Start();              
+                _listenerThread.Start();
+
+                // From here on, any modal dialog Revit raises while a command runs is
+                // answered automatically; see DialogGuard.
+                DialogGuard.Attach(_uiApp, _logger);
             }
             catch (Exception)
             {
@@ -124,6 +129,7 @@ namespace revit_mcp_plugin.Core
             try
             {
                 _isRunning = false;
+                DialogGuard.Detach();
 
                 _listener?.Stop();
                 _listener = null;
@@ -248,16 +254,23 @@ namespace revit_mcp_plugin.Core
                 }
 
                 // 执行命令
-                // Execute command.
-                try
-                {                
-                    object result = command.Execute(request.GetParamsObject(), request.Id);
-
-                    return CreateSuccessResponse(request.Id, result);
-                }
-                catch (Exception ex)
+                // Execute command. Any modal dialog Revit raises meanwhile is dismissed by
+                // DialogGuard and reported on the response, so the caller learns what was
+                // clicked away instead of waiting out a timeout.
+                using (var guard = DialogGuard.BeginRequest())
                 {
-                    return CreateErrorResponse(request.Id, JsonRPCErrorCodes.InternalError, ex.Message);
+                    try
+                    {
+                        object result = command.Execute(request.GetParamsObject(), request.Id);
+
+                        return CreateSuccessResponse(request.Id, result, guard.Dismissed);
+                    }
+                    catch (Exception ex)
+                    {
+                        var dialogs = guard.Dismissed;
+                        return CreateErrorResponse(request.Id, JsonRPCErrorCodes.InternalError, ex.Message,
+                            dialogs.Count > 0 ? new { dismissedDialogs = dialogs } : null);
+                    }
                 }
             }
             catch (JsonException)
@@ -282,12 +295,21 @@ namespace revit_mcp_plugin.Core
             }
         }
 
-        private string CreateSuccessResponse(string id, object result)
+        private string CreateSuccessResponse(string id, object result, IReadOnlyList<string> dismissedDialogs = null)
         {
+            JToken token = result is JToken jToken ? jToken : JToken.FromObject(result);
+
+            // Only an object result can carry the extra field without changing its shape;
+            // for arrays and scalars the plugin log still holds the record.
+            if (dismissedDialogs != null && dismissedDialogs.Count > 0 && token is JObject obj)
+            {
+                obj["dismissedDialogs"] = JArray.FromObject(dismissedDialogs);
+            }
+
             var response = new JsonRPCSuccessResponse
             {
                 Id = id,
-                Result = result is JToken jToken ? jToken : JToken.FromObject(result)
+                Result = token
             };
 
             return response.ToJson();

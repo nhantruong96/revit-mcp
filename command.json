@@ -10,7 +10,7 @@
   "commands": [
     {
       "commandName": "say_hello",
-      "description": "Displays a greeting dialog",
+      "description": "Connection test: returns Revit version, active document and view; shows nothing in Revit",
       "assemblyPath": "RevitMCPCommandSet.dll"
     },
     {

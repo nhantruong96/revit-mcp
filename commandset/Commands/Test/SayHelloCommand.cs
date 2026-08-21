@@ -34,7 +34,7 @@ namespace RevitMCPCommandSet.Commands.Test
 
                     if (RaiseAndWaitForCompletion(30000))
                     {
-                        return new { success = true, message = message };
+                        return _handler.Result;
                     }
                     else
                     {

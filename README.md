@@ -59,7 +59,7 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
 
 5. In Revit, click the **Settings** button on the mcp-servers-for-revit ribbon tab, enable the commands you want to use, and click **Save**
 
-6. Click the **Revit MCP Switch** button on the same ribbon panel to start the server — a dialog confirms `Open Server`. The server does not start automatically; without this step the AI client cannot reach Revit.
+6. Click the **Revit MCP Switch** button on the same ribbon panel to start the server — the button label flips to `MCP Server ON`. The server does not start automatically; without this step the AI client cannot reach Revit.
 
 > **Note:** Enabled commands are loaded when the server starts. If you change which commands are enabled while the server is already running, click **Revit MCP Switch** twice (off, then on) to reload them — otherwise calls fail with `Method '<name>' not found`.
 
@@ -168,7 +168,7 @@ If using a release ZIP, the command set is pre-installed inside the plugin. For 
 | `query_stored_data` | Query stored project and room data |
 | `delete_stored_project` | Delete a stored project and its rooms from the local database (requires `confirm: true`) |
 | `send_code_to_revit` | Send C# code to Revit to execute |
-| `say_hello` | Display a greeting dialog in Revit (connection test) |
+| `say_hello` | Connection test — returns Revit version, active document and view; shows nothing in Revit |
 
 ### Structural analysis
 
@@ -203,6 +203,17 @@ Every creation tool takes a `data` array and reports per-item results, so one ba
 Free-standing (unhosted) loads keep their exact geometry on every supported version.
 
 Newly added commands default to disabled — after updating the command set, enable them in the Revit plugin's **Command Set settings** page.
+
+## Dialogs and warnings
+
+Nothing a command does should need someone at the Revit window. Two layers take care of that:
+
+- **Inside a transaction** — `send_code_to_revit` and the room tools route Revit's failure messages through `McpFailurePreprocessor` (`commandset/Utils/McpFailureHandling.cs`): warnings are deleted, errors Revit offers a resolution for are resolved, anything else rolls the transaction back. The messages come back on the response as `revitMessages`, and a rolled-back transaction is reported as a failure rather than a silent success.
+- **Everywhere else** — while a command is in flight, the plugin's `DialogGuard` (`plugin/Core/DialogGuard.cs`) answers every modal dialog Revit raises: OK, or Yes for a Yes/No box, falling back to Cancel when the dialog rejects those. This covers `TaskDialog.Show` calls inside handlers and dialogs raised outside transactions, such as *Duplicate Types* during `CopyElements`. Each dismissed dialog is written to the plugin log and listed under `dismissedDialogs` on the response (object results only).
+
+The guard is only active while a request is running. With the server on but idle, dialogs you open yourself are not touched.
+
+> **Caveat:** the guard cannot tell a progress dialog from a prompt. Dismissing Revit's rendering progress dialog cancels the render, so start renders from the Revit UI rather than through an MCP command.
 
 ## Testing
 

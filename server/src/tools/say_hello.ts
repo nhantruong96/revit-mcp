@@ -5,12 +5,12 @@ import { withRevitConnection } from "../utils/ConnectionManager.js";
 export function registerSayHelloTool(server: McpServer) {
   server.tool(
     "say_hello",
-    "Display a greeting dialog in Revit. Useful for testing the connection between Claude and Revit.",
+    "Connection test. Returns the Revit version, the active document and the active view. Shows nothing in Revit - no dialog, nothing to click away.",
     {
       message: z
         .string()
         .optional()
-        .describe("Optional custom message to display in the dialog. Defaults to 'Hello MCP!'"),
+        .describe("Optional text echoed back in the response. Defaults to 'Hello MCP!'"),
     },
     async (args, extra) => {
       const params = args;
