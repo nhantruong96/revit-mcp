@@ -5,7 +5,7 @@ import { registerTools } from "./tools/register.js";
 
 // 创建服务器实例
 const server = new McpServer({
-  name: "mcp-server-for-revit",
+  name: "revit-mcp",
   version: "1.3.0",
 });
 

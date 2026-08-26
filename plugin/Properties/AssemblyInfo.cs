@@ -4,11 +4,11 @@ using System.Runtime.InteropServices;
 // ?????????????
 // ?????????????
 // ??????????
-[assembly: AssemblyTitle("mcp-servers-for-revit-plugin")]
+[assembly: AssemblyTitle("revit-mcp-plugin")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("P R C")]
-[assembly: AssemblyProduct("mcp-servers-for-revit-plugin")]
+[assembly: AssemblyProduct("revit-mcp-plugin")]
 [assembly: AssemblyCopyright("Copyright © P R C 2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

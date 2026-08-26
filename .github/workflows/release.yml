@@ -47,19 +47,19 @@ jobs:
       # its output into the plugin's AddIn layout.
       # ---------------------------------------------------------------
       - name: Build Revit 2023 (.NET Framework 4.8)
-        run: msbuild mcp-servers-for-revit.sln -p:Configuration="Release R23" -restore
+        run: msbuild revit-mcp.sln -p:Configuration="Release R23" -restore
 
       - name: Build Revit 2024 (.NET Framework 4.8)
-        run: msbuild mcp-servers-for-revit.sln -p:Configuration="Release R24" -restore
+        run: msbuild revit-mcp.sln -p:Configuration="Release R24" -restore
 
       - name: Build Revit 2025 (.NET 8)
-        run: dotnet build mcp-servers-for-revit.sln -c "Release R25"
+        run: dotnet build revit-mcp.sln -c "Release R25"
 
       - name: Build Revit 2026 (.NET 8)
-        run: dotnet build mcp-servers-for-revit.sln -c "Release R26"
+        run: dotnet build revit-mcp.sln -c "Release R26"
 
       - name: Build Revit 2027 (.NET 10)
-        run: dotnet build mcp-servers-for-revit.sln -c "Release R27"
+        run: dotnet build revit-mcp.sln -c "Release R27"
 
       # ---------------------------------------------------------------
       # Create Release Assets
@@ -83,7 +83,7 @@ jobs:
           foreach ($rv in $revitVersions) {
             $addinDir = "plugin/bin/AddIn $($rv.Year) $($rv.Config)"
             if (Test-Path $addinDir) {
-              $zipName = "$outputDir/mcp-servers-for-revit-$version-Revit$($rv.Year).zip"
+              $zipName = "$outputDir/revit-mcp-$version-Revit$($rv.Year).zip"
               Compress-Archive -Path "$addinDir/*" -DestinationPath $zipName
               Write-Host "Created $zipName"
             } else {

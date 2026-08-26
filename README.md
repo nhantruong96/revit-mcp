@@ -1,8 +1,8 @@
-# mcp-servers-for-revit
+# revit-mcp
 
 **Connect AI assistants to Autodesk Revit via the Model Context Protocol.**
 
-mcp-servers-for-revit enables AI clients like Claude, Cline, and other MCP-compatible tools to read, create, modify, and delete elements in Revit projects. It consists of three components: a TypeScript MCP server that exposes tools to AI, a C# Revit add-in that bridges commands into Revit, and a command set that implements the actual Revit API operations.
+revit-mcp enables AI clients like Claude, Cline, and other MCP-compatible tools to read, create, modify, and delete elements in Revit projects. It consists of three components: a TypeScript MCP server that exposes tools to AI, a C# Revit add-in that bridges commands into Revit, and a command set that implements the actual Revit API operations.
 
 > [!NOTE]
 > This is a fork of the original [revit-mcp](https://github.com/mcp-servers-for-revit/revit-mcp) project with additional tools and functionality improvements.
@@ -32,7 +32,7 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
 
 ## Quick Start (Using a Release)
 
-1. Download the ZIP for your Revit version from the [Releases](https://github.com/mcp-servers-for-revit/mcp-servers-for-revit/releases) page (e.g., `mcp-servers-for-revit-v1.0.0-Revit2025.zip`)
+1. Download the ZIP for your Revit version from the [Releases](https://github.com/nhantruong96/revit-mcp/releases) page (e.g., `revit-mcp-v1.0.0-Revit2025.zip`)
 
 2. Extract the ZIP and copy the contents to your Revit addins folder:
    ```
@@ -41,7 +41,7 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
    After copying you should have:
    ```
    Addins/2025/
-   ├── mcp-servers-for-revit.addin
+   ├── revit-mcp.addin
    └── revit_mcp_plugin/
        ├── RevitMCPPlugin.dll
        ├── ...
@@ -57,7 +57,7 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
 
 4. Start Revit — if prompted about an unknown add-in, click **Always Load**
 
-5. In Revit, click the **Settings** button on the mcp-servers-for-revit ribbon tab, enable the commands you want to use, and click **Save**
+5. In Revit, click the **Settings** button on the revit-mcp ribbon tab, enable the commands you want to use, and click **Save**
 
 6. Click the **Revit MCP Switch** button on the same ribbon panel to start the server — the button label flips to `MCP Server ON`. The server does not start automatically; without this step the AI client cannot reach Revit.
 
@@ -74,7 +74,7 @@ The MCP server is published as an npm package and can be run directly with `npx`
 Run this in a **terminal** (not inside Claude Code):
 
 ```bash
-claude mcp add mcp-server-for-revit -- cmd /c npx -y mcp-server-for-revit
+claude mcp add revit-mcp -- cmd /c npx -y mcp-server-for-revit
 ```
 
 **Claude Desktop**
@@ -84,7 +84,7 @@ Claude Desktop → Settings → Developer → Edit Config → `claude_desktop_co
 ```json
 {
     "mcpServers": {
-        "mcp-server-for-revit": {
+        "revit-mcp": {
             "command": "cmd",
             "args": ["/c", "npx", "-y", "mcp-server-for-revit"]
         }
@@ -111,9 +111,9 @@ Then point your client at the built entry point instead of `npx`:
 ```json
 {
     "mcpServers": {
-        "mcp-server-for-revit": {
+        "revit-mcp": {
             "command": "C:\\Program Files\\nodejs\\node.exe",
-            "args": ["C:\\path\\to\\mcp-servers-for-revit\\server\\build\\index.js"]
+            "args": ["C:\\path\\to\\revit-mcp\\server\\build\\index.js"]
         }
     }
 }
@@ -126,7 +126,7 @@ Re-run `npm run build` after changing anything under `server/src/`.
 If using a release ZIP, the plugin is already included. For manual installation:
 
 1. Build the plugin from `plugin/` (see [Development](#development))
-2. Copy `mcp-servers-for-revit.addin` to `%AppData%\Autodesk\Revit\Addins\<version>\`
+2. Copy `revit-mcp.addin` to `%AppData%\Autodesk\Revit\Addins\<version>\`
 3. Copy the `revit_mcp_plugin/` folder to the same addins directory
 
 ## Command Set Setup
@@ -313,7 +313,7 @@ The server compiles TypeScript to `server/build/`. During development you can ru
 
 ### Revit Plugin + Command Set
 
-Open `mcp-servers-for-revit.sln` in Visual Studio. The solution contains both the plugin and command set projects. Build configurations target Revit 2023-2027:
+Open `revit-mcp.sln` in Visual Studio. The solution contains both the plugin and command set projects. Build configurations target Revit 2023-2027:
 
 - **Revit 2023-2024**: .NET Framework 4.8 (`Release R23`, `Release R24`)
 - **Revit 2025-2026**: .NET 8 (`Release R25`, `Release R26`)
@@ -324,8 +324,8 @@ Building the solution automatically assembles the complete deployable layout in 
 ## Project Structure
 
 ```
-mcp-servers-for-revit/
-├── mcp-servers-for-revit.sln    # Combined solution (plugin + commandset + tests)
+revit-mcp/
+├── revit-mcp.sln    # Combined solution (plugin + commandset + tests)
 ├── command.json     # Command set manifest
 ├── server/          # MCP server (TypeScript) - tools exposed to AI clients
 ├── plugin/          # Revit add-in (C#) - WebSocket bridge inside Revit
@@ -342,7 +342,7 @@ mcp-servers-for-revit/
 A single `v*` tag drives the entire release. The [release workflow](.github/workflows/release.yml) automatically:
 
 - Builds the Revit plugin + command set for Revit 2023-2027
-- Creates a GitHub release with `mcp-servers-for-revit-vX.Y.Z-Revit<year>.zip` assets
+- Creates a GitHub release with `revit-mcp-vX.Y.Z-Revit<year>.zip` assets
 - Publishes the MCP server to npm as [`mcp-server-for-revit`](https://www.npmjs.com/package/mcp-server-for-revit)
 
 To create a release:

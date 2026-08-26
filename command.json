@@ -2,10 +2,10 @@
   "name": "RevitMCPCommandSet",
   "description": "Basic command collection for Revit AI assistance",
   "developer": {
-    "name": "mcp-servers-for-revit",
+    "name": "revit-mcp",
     "email": "",
     "website": "",
-    "organization": "mcp-servers-for-revit"
+    "organization": "revit-mcp"
   },
   "commands": [
     {

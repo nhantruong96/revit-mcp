@@ -1,18 +1,18 @@
-# mcp-server-for-revit
+# revit-mcp
 
 MCP server for interacting with Autodesk Revit through AI assistants like Claude.
 
-This package is the MCP server component of [mcp-servers-for-revit](https://github.com/mcp-servers-for-revit/mcp-servers-for-revit). It exposes Revit operations as MCP tools that AI clients can call. The server communicates with the [Revit plugin](https://github.com/mcp-servers-for-revit/mcp-servers-for-revit) over WebSocket to execute commands inside Revit.
+This package is the MCP server component of [revit-mcp](https://github.com/nhantruong96/revit-mcp). It exposes Revit operations as MCP tools that AI clients can call. The server communicates with the [Revit plugin](https://github.com/nhantruong96/revit-mcp) over WebSocket to execute commands inside Revit.
 
 > [!NOTE]
-> This server requires the mcp-servers-for-revit Revit plugin to be installed and running inside Revit. See the [full project README](https://github.com/mcp-servers-for-revit/mcp-servers-for-revit) for setup instructions.
+> This server requires the revit-mcp Revit plugin to be installed and running inside Revit. See the [full project README](https://github.com/nhantruong96/revit-mcp) for setup instructions.
 
 ## Setup
 
 **Claude Code**
 
 ```bash
-claude mcp add mcp-server-for-revit -- npx -y mcp-server-for-revit
+claude mcp add revit-mcp -- npx -y mcp-server-for-revit
 ```
 
 **Claude Desktop**
@@ -22,7 +22,7 @@ Claude Desktop → Settings → Developer → Edit Config → `claude_desktop_co
 ```json
 {
     "mcpServers": {
-        "mcp-server-for-revit": {
+        "revit-mcp": {
             "command": "npx",
             "args": ["-y", "mcp-server-for-revit"]
         }
@@ -72,4 +72,4 @@ npm run build
 
 ## License
 
-[MIT](https://github.com/mcp-servers-for-revit/mcp-servers-for-revit/blob/main/LICENSE)
+[MIT](https://github.com/nhantruong96/revit-mcp/blob/main/LICENSE)
