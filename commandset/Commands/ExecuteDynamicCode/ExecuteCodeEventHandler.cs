@@ -22,6 +22,7 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
         private string _generatedCode;
         private object[] _executionParameters;
         private string _transactionMode = TransactionModeAuto;
+        private string _documentHandle;
 
         // 执行结果信息
         public ExecutionResultInfo ResultInfo { get; private set; }
@@ -31,11 +32,12 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
         private readonly ManualResetEvent _resetEvent = new ManualResetEvent(false);
 
         // 设置要执行的代码和参数
-        public void SetExecutionParameters(string code, object[] parameters = null, string transactionMode = TransactionModeAuto)
+        public void SetExecutionParameters(string code, object[] parameters = null, string transactionMode = TransactionModeAuto, string documentHandle = null)
         {
             _generatedCode = code;
             _executionParameters = parameters ?? Array.Empty<object>();
             _transactionMode = transactionMode == TransactionModeNone ? TransactionModeNone : TransactionModeAuto;
+            _documentHandle = documentHandle;
             TaskCompleted = false;
             _resetEvent.Reset();
         }
@@ -51,7 +53,12 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
         {
             try
             {
-                var doc = app.ActiveUIDocument.Document;
+                // With a handle the snippet runs against that background document; without one
+                // it keeps the original behaviour of using whatever is active.
+                var doc = string.IsNullOrWhiteSpace(_documentHandle)
+                    ? app.ActiveUIDocument.Document
+                    : FamilyDocumentRegistry.Resolve(_documentHandle, app);
+
                 ResultInfo = new ExecutionResultInfo();
 
                 object result;

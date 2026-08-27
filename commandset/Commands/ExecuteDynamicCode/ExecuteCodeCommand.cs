@@ -34,8 +34,13 @@ namespace RevitMCPCommandSet.Commands.ExecuteDynamicCode
                 object[] executionParameters = parametersArray?.ToObject<object[]>() ?? Array.Empty<object>();
                 string transactionMode = parameters["transactionMode"]?.Value<string>() ?? ExecuteCodeEventHandler.TransactionModeAuto;
 
+                // A background family document opened with family_open_document never becomes
+                // the active one, so without this the snippet would silently run against
+                // whatever the user happens to have in front of them instead.
+                string documentHandle = parameters["documentHandle"]?.Value<string>();
+
                 // 设置执行参数
-                _handler.SetExecutionParameters(code, executionParameters, transactionMode);
+                _handler.SetExecutionParameters(code, executionParameters, transactionMode, documentHandle);
 
                 // 触发外部事件并等待完成
                 if (RaiseAndWaitForCompletion(60000)) // 1分钟超时

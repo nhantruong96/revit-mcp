@@ -172,6 +172,41 @@
       "commandName": "create_load_combination",
       "description": "Create load combinations from factored load cases or nested combinations",
       "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "family_open_document",
+      "description": "Open, create, save or close a family document in the background",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "family_add_parameters",
+      "description": "Declare family parameters in bulk, shared or plain",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "family_set_formulas",
+      "description": "Assign or clear formulas on existing family parameters in bulk",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "family_read_parameters",
+      "description": "Read the whole family parameter table back, with GUIDs, formulas and values",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "family_flex",
+      "description": "Flex a family: push values in, regenerate, report read-back values and warnings",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "family_measure_geometry",
+      "description": "Measure solid geometry in a family: volume, surface area and bounding box",
+      "assemblyPath": "RevitMCPCommandSet.dll"
+    },
+    {
+      "commandName": "view_export",
+      "description": "Export a view to an image or to DWG for visual and dimensional checking",
+      "assemblyPath": "RevitMCPCommandSet.dll"
     }
   ]
 }

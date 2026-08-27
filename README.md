@@ -204,6 +204,40 @@ Free-standing (unhosted) loads keep their exact geometry on every supported vers
 
 Newly added commands default to disabled — after updating the command set, enable them in the Revit plugin's **Command Set settings** page.
 
+### Family authoring
+
+These tools work on family (`.rfa`) documents rather than on the project. A family opened
+with `family_open_document` is a *background* document: it never becomes the active one, so
+authoring does not disturb whatever the user has on screen. Every other tool in the group
+takes the `documentHandle` that returns, and handles live only for the current Revit session.
+
+Lengths cross the boundary in millimetres, and volumes come back in cubic millimetres, so
+results compare directly against a hand calculation without converting anything.
+
+| Tool | Description |
+| ---- | ----------- |
+| `family_open_document` | Open, create, save or close a family document in the background |
+| `family_add_parameters` | Declare parameters in bulk, shared (from a shared parameter file) or plain |
+| `family_set_formulas` | Assign or clear formulas on parameters that already exist |
+| `family_read_parameters` | Read the parameter table back: instance flag, shared GUID, formula, value |
+| `family_flex` | Push values in, regenerate, report read-back values and warnings added |
+| `family_measure_geometry` | Volume, surface area and bounding box, per element and in total |
+| `view_export` | Export a view to PNG or DWG, from a background document or the active one |
+
+Two ordering rules the tools cannot enforce for you:
+
+- **Declare every parameter before setting any formula.** A formula can only reference names
+  Revit already knows, so `family_add_parameters` has to finish before `family_set_formulas`
+  starts. Splitting them into two tools is what makes that hard to get wrong.
+- **Never put a formula on a parameter a type catalog feeds.** A formula makes the parameter
+  read-only, and Revit then ignores that catalog column without reporting anything.
+
+`family_read_parameters` exists because writes are worth checking: a parameter that came out
+as a type parameter when it had to be an instance one, or a shared parameter whose GUID does
+not match the file every other family used, both look like success until something downstream
+breaks. Same reasoning for `family_measure_geometry` — parameters reading back correctly does
+not prove the sketch locked to the plane you meant.
+
 ## Dialogs and warnings
 
 Nothing a command does should need someone at the Revit window. Two layers take care of that:
