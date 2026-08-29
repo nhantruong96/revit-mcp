@@ -137,7 +137,10 @@ namespace RevitMCPCommandSet.Services.DataExtraction
                     levelStats.Add(new LevelStatistics
                     {
                         LevelName = level.Name,
-                        Elevation = level.Elevation,
+                        // Reported in metres, not Revit's internal feet. Rounded because the
+                        // conversion turns a level that sits exactly at zero into 6.6e-19.
+                        Elevation = Math.Round(
+                            UnitUtils.ConvertFromInternalUnits(level.Elevation, UnitTypeId.Meters), 6),
                         ElementCount = elementCount
                     });
                 }
