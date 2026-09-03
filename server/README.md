@@ -9,10 +9,19 @@ This package is the MCP server component of [revit-mcp](https://github.com/nhant
 
 ## Setup
 
+This server is not published to npm; it is built from the repository. Requires **Node.js 20+**.
+
+```bash
+npm ci
+npm run build
+```
+
+That produces `build/index.js`, which is the entry point your AI client runs.
+
 **Claude Code**
 
 ```bash
-claude mcp add revit-mcp -- npx -y mcp-server-for-revit
+claude mcp add revit-mcp -- node /path/to/revit-mcp/server/build/index.js
 ```
 
 **Claude Desktop**
@@ -23,8 +32,8 @@ Claude Desktop → Settings → Developer → Edit Config → `claude_desktop_co
 {
     "mcpServers": {
         "revit-mcp": {
-            "command": "npx",
-            "args": ["-y", "mcp-server-for-revit"]
+            "command": "C:\\Program Files\\nodejs\\node.exe",
+            "args": ["C:\\path\\to\\revit-mcp\\server\\build\\index.js"]
         }
     }
 }

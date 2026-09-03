@@ -27,7 +27,7 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
 
 ## Requirements
 
-- **Node.js 18+** (for the MCP server)
+- **Node.js 20+** (for the MCP server)
 - **Autodesk Revit 2023 - 2027** (any supported version)
 
 ## Quick Start (Using a Release)
@@ -65,40 +65,7 @@ The **MCP Server** (TypeScript) translates tool calls from AI clients into WebSo
 
 ## MCP Server Setup
 
-The MCP server is published as an npm package and can be run directly with `npx`.
-
-> **Known issue with `npx`:** the currently published version (`1.0.0`) depends on `better-sqlite3` v11, which ships no prebuilt binary for Node 22+. On those versions npm falls back to compiling from source with `node-gyp`, which fails unless Visual Studio with the "Desktop development with C++" workload is installed — the server then exits before it can start. The fix (bumping to `better-sqlite3` v12) is already in this repository but has not been released to npm yet. Until it is, either pin Node 20 or use [Running from source](#running-the-server-from-source) below.
-
-**Claude Code**
-
-Run this in a **terminal** (not inside Claude Code):
-
-```bash
-claude mcp add revit-mcp -- cmd /c npx -y mcp-server-for-revit
-```
-
-**Claude Desktop**
-
-Claude Desktop → Settings → Developer → Edit Config → `claude_desktop_config.json`:
-
-```json
-{
-    "mcpServers": {
-        "revit-mcp": {
-            "command": "cmd",
-            "args": ["/c", "npx", "-y", "mcp-server-for-revit"]
-        }
-    }
-}
-```
-
-Restart Claude Desktop. When you see the hammer icon, the MCP server is connected.
-
-![Claude Desktop connection](./assets/claude.png)
-
-### Running the server from source
-
-This avoids npm entirely and always matches the code in this repository. Requires **Node.js 20+**.
+The MCP server is built from this repository. Requires **Node.js 20+**.
 
 ```bash
 cd server
@@ -106,7 +73,19 @@ npm ci
 npm run build
 ```
 
-Then point your client at the built entry point instead of `npx`:
+That produces `server/build/index.js`, which is the entry point your AI client runs.
+
+**Claude Code**
+
+Run this in a **terminal** (not inside Claude Code):
+
+```bash
+claude mcp add revit-mcp -- node C:\path\to\revit-mcp\server\build\index.js
+```
+
+**Claude Desktop**
+
+Claude Desktop → Settings → Developer → Edit Config → `claude_desktop_config.json`:
 
 ```json
 {
@@ -119,7 +98,13 @@ Then point your client at the built entry point instead of `npx`:
 }
 ```
 
+Restart Claude Desktop. When you see the hammer icon, the MCP server is connected.
+
+![Claude Desktop connection](./assets/claude.png)
+
 Re-run `npm run build` after changing anything under `server/src/`.
+
+> **Why not `npx`?** The npm package [`mcp-server-for-revit`](https://www.npmjs.com/package/mcp-server-for-revit) belongs to the upstream project and is still at `1.0.0`, so it has none of the tools or fixes in this fork. It also depends on `better-sqlite3` v11, which ships no prebuilt binary for Node 22+ and falls back to compiling from source with `node-gyp` — that needs Visual Studio with the "Desktop development with C++" workload, and without it the server exits before it can start. Building from source avoids both problems.
 
 ## Revit Plugin Setup
 
@@ -377,7 +362,6 @@ A single `v*` tag drives the entire release. The [release workflow](.github/work
 
 - Builds the Revit plugin + command set for Revit 2023-2027
 - Creates a GitHub release with `revit-mcp-vX.Y.Z-Revit<year>.zip` assets
-- Publishes the MCP server to npm as [`mcp-server-for-revit`](https://www.npmjs.com/package/mcp-server-for-revit)
 
 To create a release:
 
@@ -390,9 +374,6 @@ To create a release:
    ```bash
    git push origin main --tags
    ```
-
-> [!NOTE]
-> npm publish uses [trusted publishing](https://docs.npmjs.com/trusted-publishers/) via OIDC — no npm token is required. Provenance attestation is generated automatically.
 
 ## Acknowledgements
 
