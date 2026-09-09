@@ -48,7 +48,7 @@ namespace revit_mcp_plugin.Core
         /// </summary>
         /// <param name="running">Whether the socket service is actually listening.</param>
         /// <param name="port">Port it is listening on; shown in the tooltip when running.</param>
-        public static void SetServiceState(bool running, int port = 8080)
+        public static void SetServiceState(bool running, int port = 8127)
         {
             if (_switchButton == null) return;
 

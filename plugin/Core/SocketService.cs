@@ -21,7 +21,7 @@ namespace revit_mcp_plugin.Core
         private TcpListener _listener;
         private Thread _listenerThread;
         private bool _isRunning;
-        private int _port = 8080;
+        private int _port = 8127;
         private UIApplication _uiApp;
         private ICommandRegistry _commandRegistry;
         private ILogger _logger;
@@ -79,13 +79,24 @@ namespace revit_mcp_plugin.Core
             configManager.LoadConfiguration();
             
 
-            //// 从配置中读取服务端口
-            //// Read the service port from the configuration.
-            //if (configManager.Config.Settings.Port > 0)
-            //{
-            //    _port = configManager.Config.Settings.Port;
-            //}
-            _port = 8080; // 固定端口号 - Hard-wired port number.
+            // 从配置中读取服务端口
+            // Read the service port from the configuration.
+            //
+            // Null-conditional on purpose: LoadConfiguration() leaves Config as null when the
+            // file is missing or fails to parse, so a bare Config.Settings.Port throws at
+            // start-up. That is why this block used to be commented out and the port hard-wired
+            // instead. Falling back to the field default keeps the plugin loading even with no
+            // configuration file at all.
+            int configuredPort = configManager.Config?.Settings?.Port ?? 0;
+            if (configuredPort > 0 && configuredPort <= 65535)
+            {
+                _port = configuredPort;
+                _logger.Info($"Port {_port} taken from configuration.");
+            }
+            else
+            {
+                _logger.Info($"No usable port in configuration; using default {_port}.");
+            }
 
             // 加载命令
             // Load command.
