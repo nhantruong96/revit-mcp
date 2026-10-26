@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+      IfcRebuild command set: rebuilds a native Revit model from data extracted from an IFC file.
+      Revit 2027 only. It references the Steel Connections assemblies that ship with Revit, so it builds
+      on a machine where Revit is installed; that is why it is not part of revit-mcp.sln (CI has no Revit).
+      Build:  dotnet build ifcrebuild/IfcRebuildCommandSet.csproj -c "Release R27"
+      Override the install folder with -p:RevitInstallDir="D:\Autodesk\Revit 2027" when it differs.
+    -->
+    <PropertyGroup>
+        <AssemblyName>IfcRebuildCommandSet</AssemblyName>
+        <RootNamespace>IfcRebuild</RootNamespace>
+        <LangVersion>latest</LangVersion>
+        <PlatformTarget>x64</PlatformTarget>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>disable</Nullable>
+        <Configurations>Debug R27;Release R27</Configurations>
+        <RevitVersion>2027</RevitVersion>
+        <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+        <DefineConstants>$(DefineConstants);REVIT2024_OR_GREATER;REVIT2025_OR_GREATER;REVIT2026_OR_GREATER;REVIT2027_OR_GREATER</DefineConstants>
+        <RevitInstallDir Condition="'$(RevitInstallDir)' == ''">C:\Program Files\Autodesk\Revit $(RevitVersion)</RevitInstallDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageReference Include="RevitMCPSDK" Version="$(RevitVersion).*" />
+    </ItemGroup>
+
+    <!-- The Revit API from the install folder rather than the Nice3point packages: the Steel Connections assemblies are
+         built against these exact files, and mixing the two gives MSB3277 version conflicts. -->
+    <ItemGroup>
+        <Reference Include="RevitAPI"><HintPath>$(RevitInstallDir)\RevitAPI.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="RevitAPIUI"><HintPath>$(RevitInstallDir)\RevitAPIUI.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="RevitAPISteel"><HintPath>$(RevitInstallDir)\RevitAPISteel.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="Autodesk.SteelConnectionsDB"><HintPath>$(RevitInstallDir)\AddIns\SteelConnections\Autodesk.SteelConnectionsDB.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="ASObjectsMgd"><HintPath>$(RevitInstallDir)\AddIns\SteelConnections\ASObjectsMgd.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="ASGeometryMgd"><HintPath>$(RevitInstallDir)\AddIns\SteelConnections\ASGeometryMgd.dll</HintPath><Private>false</Private></Reference>
+        <Reference Include="ASCADLinkMgd"><HintPath>$(RevitInstallDir)\AddIns\SteelConnections\ASCADLinkMgd.dll</HintPath><Private>false</Private></Reference>
+    </ItemGroup>
+
+    <!-- Same layout as RevitMCPCommandSet: Commands/IfcRebuild/<version>/ next to Commands/IfcRebuild/command.json. -->
+    <Target Name="DeployCommandSet" AfterTargets="Build">
+        <PropertyGroup>
+            <PluginAddInRoot>$(ProjectDir)..\plugin\bin\AddIn $(RevitVersion) $(Configuration)\revit_mcp_plugin\</PluginAddInRoot>
+            <CommandSetPluginDir>$(PluginAddInRoot)Commands\IfcRebuild\</CommandSetPluginDir>
+            <RevitAddinsDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)\revit_mcp_plugin\Commands\IfcRebuild\</RevitAddinsDir>
+        </PropertyGroup>
+
+        <ItemGroup>
+            <CommandSetBinaries Include="$(TargetDir)*.dll;$(TargetDir)*.pdb" />
+            <CommandJsonFile Include="$(ProjectDir)command.json" />
+        </ItemGroup>
+
+        <!-- Always: copy to the plugin's AddIn output for release packaging -->
+        <MakeDir Directories="$(CommandSetPluginDir)$(RevitVersion)" />
+        <Copy SourceFiles="@(CommandSetBinaries)" DestinationFolder="$(CommandSetPluginDir)$(RevitVersion)\" />
+        <Copy SourceFiles="@(CommandJsonFile)" DestinationFolder="$(CommandSetPluginDir)" />
+
+        <!-- Debug only: copy to the Revit Addins folder for local development -->
+        <MakeDir Directories="$(RevitAddinsDir)$(RevitVersion)" Condition="$(Configuration.Contains('Debug'))" />
+        <Copy SourceFiles="@(CommandSetBinaries)" DestinationFolder="$(RevitAddinsDir)$(RevitVersion)\" Condition="$(Configuration.Contains('Debug'))" />
+        <Copy SourceFiles="@(CommandJsonFile)" DestinationFolder="$(RevitAddinsDir)" Condition="$(Configuration.Contains('Debug'))" />
+    </Target>
+
+</Project>

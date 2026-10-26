@@ -1,0 +1,22 @@
+{
+  "name": "IfcRebuild",
+  "description": "Rebuild a native Revit model from IFC data, as long-running background jobs",
+  "developer": {
+    "name": "revit-mcp",
+    "email": "",
+    "website": "",
+    "organization": "revit-mcp"
+  },
+  "commands": [
+    {
+      "commandName": "ifcrebuild_run",
+      "description": "Queue an IfcRebuild method (Frame, Rebar, Steel, Build, System, Params, Gate, Save, ExportQa, Snapshot, Ping...) and return a job id at once",
+      "assemblyPath": "IfcRebuildCommandSet.dll"
+    },
+    {
+      "commandName": "ifcrebuild_status",
+      "description": "Read the state, progress and result of an IfcRebuild job, or list recent jobs",
+      "assemblyPath": "IfcRebuildCommandSet.dll"
+    }
+  ]
+}

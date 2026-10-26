@@ -223,6 +223,141 @@ not match the file every other family used, both look like success until somethi
 breaks. Same reasoning for `family_measure_geometry` — parameters reading back correctly does
 not prove the sketch locked to the plane you meant.
 
+### IfcRebuild (rebuild a native Revit model from IFC)
+
+`ifcrebuild/` is a second command set for rebuilding a model in Revit from data extracted
+from an IFC file, with native elements only: system and loadable families, library steel
+sections, Steel Connections plates and bolts, Rebar, stairs and ramps. The extraction (IFC to
+JSON) happens outside Revit, for example with IfcOpenShell; IfcRebuild reads those JSON files,
+builds, checks the result against the IFC volumes and boxes, and reports.
+
+A build takes minutes to hours, far past the 2-minute limit of a request, so IfcRebuild runs
+**jobs**: `ifcrebuild_run` queues one method and answers at once with a job id, and
+`ifcrebuild_status` reads the job while Revit works on it.
+
+| Tool | Description |
+| ---- | ----------- |
+| `ifcrebuild_run` | Queue an IfcRebuild method (`method`, `args`, optional `config`, `waitMs`); returns the job at once |
+| `ifcrebuild_status` | State, progress, deleted warnings and result of a job (`jobId`, optional `waitMs`), or the list of recent jobs |
+
+**Install.** It is Revit 2027 only and needs Revit installed to build, because it references the
+Steel Connections assemblies in the Revit folder; it is therefore not in `revit-mcp.sln` or the
+release workflow. Build it after the plugin:
+
+```bash
+dotnet build ifcrebuild/IfcRebuildCommandSet.csproj -c "Release R27"
+```
+
+That adds `Commands/IfcRebuild/command.json` and `Commands/IfcRebuild/2027/IfcRebuildCommandSet.dll`
+to `plugin/bin/AddIn 2027 Release R27/revit_mcp_plugin/`; copy that folder into the installed
+plugin with Revit closed. Pass `-p:RevitInstallDir=...` when Revit is not in
+`C:\Program Files\Autodesk\Revit 2027`. Then enable `ifcrebuild_run` and `ifcrebuild_status` under
+**Settings** and switch the server off and on with **Revit MCP Switch**. There is no separate
+add-in and no extra button: the jobs run through the plugin.
+
+**A session.** Run `Methods` to list every method with its argument names. Each method takes
+the active document plus string arguments in order; a missing trailing argument is an empty
+string, which means the default. Methods that change the model take mode `probe` (everything
+rolled back, also the default) or `apply`.
+
+```jsonc
+// ifcrebuild_run
+{ "method": "Ping", "args": ["hello"], "waitMs": 10000 }
+{ "method": "Frame", "args": ["D:\\Projects\\ProjectX\\ifc2rvt\\frame.json", "range=0-200", "probe", "", "D:\\Projects\\ProjectX\\ifc2rvt\\frame_report.txt"],
+  "config": "D:\\Projects\\ProjectX\\ifc2rvt\\ifcrebuild.json" }
+// -> { "jobId": "20261025-140210-3fa9c1", "state": "running", ... }
+
+// ifcrebuild_status
+{ "jobId": "20261025-140210-3fa9c1", "waitMs": 60000 }
+// -> { "state": "done", "elapsedSeconds": 412.7, "progress": "Frame match 200/200", "result": "Frame probe ...", "resultFile": "..." }
+```
+
+Jobs run one after another on Revit's thread. The result of each one is also written to a file
+(`%TEMP%\IfcRebuild\jobs\<jobId>.txt` unless the config says otherwise), so it survives the client.
+Long builders take a filter to work in batches: `range=a-b` (items a to b-1 in input order),
+`max=n`, `names=a,b`, and per builder `fam=`, `hosts=`, `nodes=`, `phase=a-b`, `cls=`.
+
+| Method | What it does |
+| ------ | ------------ |
+| `Setup` | Levels and plans, grids, materials, project GUIDs and shared coordinates (IfcMapConversion) |
+| `Build`, `Delete` | Loadable families generated from IFC solids, or library families, and their instances |
+| `System` | Walls, cladding, floors, roof sheets, pipes, cable trays, rooms |
+| `Doors`, `Circulation` | Doors hosted in their walls; stairs and ramps as native system families |
+| `Joins` | Join Geometry from the IFC `yields_to` pairs; undoes joins the IFC does not have |
+| `Frame` | Steel framing with library families, matched to the IFC by section signature; modes `probe`, `apply`, `refit` |
+| `Steel`, `SteelProbe`, `SteelSmoke` | Steel Connections plates, bolt and anchor patterns per connection node |
+| `SteelCount`, `SteelBoltReport` | Read-only: Steel Connections objects by type; grip, length and centre of every bolt pattern in the map file (CSV) |
+| `SteelSetGrip`, `SteelSetContour`, `SteelDeleteByMap` | Fix built connections in place: bolt grip where Steel Connections cannot measure it, new plate outline keeping the plate id, delete the elements of listed GlobalIds before rebuilding them |
+| `GuidMap`, `ExportIfc` | Map file for setups where Revit keeps its own IfcGUIDs; IFC export with Steel Connections elements that records the exported GlobalId of every map line |
+| `Rebar` | Native Rebar per IFC bar set, including 135° hooks |
+| `Assemblies` | One assembly per connection node, carrying the node GUID |
+| `Params`, `AuditParams` | IFC attributes, Psets, Qtos and classification as shared parameters, and their audit |
+| `Collab` | Worksets per discipline in one file, saved as central |
+| `Gate`, `Save` | No DirectShape, import or in-place family; `Save` saves only when the gate passes |
+| `ExportQa`, `Recog`, `Snapshot`, `InspectFamilies` | Read-only checks: element listing, signs of automatic rebuilding, PNG of chosen elements, family files |
+| `NewDocument`, `NewEmpty`, `Open`, `OpenActive`, `SetSpatialGuids`, `ClearMarks` | Working document and GUID housekeeping |
+
+The JSON layout each builder reads is described in the header comment of its file under
+`ifcrebuild/Builders/`. Elements are matched to the IFC by IfcGUID = GlobalId (Mark holds the
+GlobalId while building; `ClearMarks` empties it at the end). Frame, Steel and Rebar can also
+write the pairs (IFC id, Revit UniqueId; Steel: Steel Connections id) to a map file as JSON lines,
+for setups where Revit keeps its own IfcGUIDs. `GuidMap` completes that file (a line for every
+element still carrying a source GlobalId, whose IfcGUID it then clears, and the SteelProxyElement
+UniqueId of every Steel line); `ExportIfc` then writes the exported GlobalId of each line as `rg`.
+A Steel Connections element is exported under the GlobalId of its Steel Connections id, not under
+the IfcGUID of its SteelProxyElement, so a Steel line gets `rg` = that compressed id and
+`rg_proxy` = the proxy's IfcGUID.
+
+**Config.** Nothing project specific is compiled in. Paths, type names and naming formats come
+from the input files or from the optional config file; every key may be left out:
+
+```jsonc
+{
+  "familyTemplateDir": "",                     // empty: Revit's own family template folder
+  "partFamilyDir": "",                         // nested part families; empty: %TEMP%\IfcRebuild\parts
+  "jobsDir": "",                               // job result files; empty: %TEMP%\IfcRebuild\jobs
+  "geometryFile": "ifc_geo.json",              // next to the plan: {"GlobalId": {"v": m3, "bb": [x0,y0,z0,x1,y1,z1] m}}
+  "materialParameter": "Material",
+  "doorMaterial": "Steel",
+  "guidPolicy": "source",                      // "source": IfcGUID = GlobalId; "revit": Frame leaves it to Revit
+  "structuralPlanName": "{level} - Structural",
+  "gridMarginMm": 8000,
+  "pipeSystemType": "",                        // first piping system type whose name contains this
+  "rebarHookType": "Stirrup/Tie Seismic - 135 deg",
+  "rebarBarTypeName": "{d} {grade}",
+  "rebarBendDiameterFactor": 4,
+  "stairRunTypeSource": "M_Monolithic Run",
+  "stairLandingTypeSource": "300mm Thickness",
+  "stairTypeSource": "M_Monolithic Stair",
+  "typeNames": { "wall": "Wall {material} {thickness}mm", "floor": "Floor {material} {thickness}mm" },
+  "worksets": [ { "name": "Structure - Rebar", "categories": ["OST_Rebar"] } ],
+  "concreteWorkset": "Structure - Concrete",
+  "steelWorkset": "Structure - Steel"
+}
+```
+
+Traps the code already handles, worth knowing before changing it:
+
+- `FabricationTransaction(doc, false, name)`: the second argument is `isReadOnly`. Passing `true`
+  and then writing shuts Revit down.
+- Steel Connections opens transactions of its own that no failure preprocessor sees. While a job
+  runs, IfcRebuild deletes their warnings in the `FailuresProcessing` event and lists them on the
+  job (`warningsDeleted`); otherwise a modal warning blocks the job.
+- Steel Connections does not measure the grip of a bolt through Revit L-angle or light-gauge
+  framing families ("Connected element not supported"). `SteelSetGrip` sets it from a CSV
+  `as,grip,len|add[,cx,cy,cz]`: `len` sets the grip itself, `add` sets the addition over what the
+  connected plates measure (the grip itself would be measured again and reset).
+- 135° hooks: the hook legs are taken off the bar centre line and the bar gets a hook type at both
+  ends with the leg length; the termination orientation is found by comparing the hook ends Revit
+  draws with the IFC leg ends, then remembered per bar shape and reused.
+- `Frame` checks each member against the IFC section signature (open side of a C, direction of a
+  Z, corner of an L), not just its bounding box, trying 90° rotations, a mirrored angle and a
+  reversed axis until it fits. `refit` corrects members already placed instead of recreating them.
+
+**Changing the builders without restarting Revit.** Pass `dll` with the path of a separately
+built `IfcRebuildCommandSet.dll`: each job then runs a fresh copy of it in a load context of its
+own. Progress is reported from the copy as well.
+
 ## Dialogs and warnings
 
 Nothing a command does should need someone at the Revit window. Two layers take care of that:
@@ -349,6 +484,7 @@ revit-mcp/
 ├── server/          # MCP server (TypeScript) - tools exposed to AI clients
 ├── plugin/          # Revit add-in (C#) - WebSocket bridge inside Revit
 ├── commandset/      # Command implementations (C#) - Revit API operations
+├── ifcrebuild/      # IfcRebuild command set (C#, Revit 2027) - rebuild a model from IFC as background jobs
 ├── tests/           # Integration tests (C#) - TUnit tests against live Revit
 ├── assets/          # Images for documentation
 ├── .github/         # CI/CD workflows, contributing guide, code of conduct
