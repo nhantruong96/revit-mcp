@@ -71,6 +71,18 @@ public static class Entry
     public static string SteelSetGrip(Document doc, string csvPath, string mode) => IfcRebuild.Steel.SetGrip(doc, csvPath, mode);
     /// <summary>New outline for plates already built, keeping their Steel Connections id: JSON {gid: {n, pts}}.</summary>
     public static string SteelSetContour(Document doc, string mapPath, string jsonPath, string mode) => IfcRebuild.Steel.SetContour(doc, mapPath, jsonPath, mode);
+    /// <summary>Plates already built (map lines PLATE): thickness on the +n side (Portioning 1).</summary>
+    public static string SteelFixPlates(Document doc, string mapPath, string mode) => IfcRebuild.Steel.FixPlates(doc, mapPath, mode);
+    /// <summary>Bolt patterns already built (map lines BOLTS): count and spacing from the Steel JSON; filter "max=n|range=a-b|names=gid,..".</summary>
+    public static string SteelFixBolts(Document doc, string jsonPath, string mapPath, string filter, string mode) => IfcRebuild.Steel.FixBolts(doc, jsonPath, mapPath, filter, mode);
+    /// <summary>Anchor patterns already built (map lines ANCHORS): diameter and straight length from the Steel JSON; filter "max=n|range=a-b".</summary>
+    public static string SteelFixAnchors(Document doc, string jsonPath, string mapPath, string filter, string mode) => IfcRebuild.Steel.FixAnchors(doc, jsonPath, mapPath, filter, mode);
+    /// <summary>Read-only: direction, length and standard of the first n anchor patterns (default 10).</summary>
+    public static string SteelAnchorInfo(Document doc, string n) => IfcRebuild.Steel.AnchorInfo(doc, n);
+    /// <summary>Rolled back: the anchor lengths "l1,l2,.." (mm) Steel Connections keeps for diameter d (mm).</summary>
+    public static string SteelAnchorTry(Document doc, string d, string lengths) => IfcRebuild.Steel.AnchorTry(doc, d, lengths);
+    /// <summary>Three plates with Portioning 0, 0.5, 1 at the origin (smoke test, best on an empty project).</summary>
+    public static string SteelSmokePortioning(Document doc) => IfcRebuild.Steel.SmokePortioning(doc);
     /// <summary>Native Rebar per bar set of the rebar JSON; filter "hosts=a,b|max=n|range=a-b".</summary>
     public static string Rebar(Document doc, string jsonPath, string filter, string mode, string mapPath, string reportPath) => IfcRebuild.Rebars.Run(doc, jsonPath, filter, mode, mapPath, reportPath);
     /// <summary>One Revit assembly per node of the JSON.</summary>
@@ -91,6 +103,26 @@ public static class Entry
     public static string GuidMap(Document doc, string mapPath, string gidPath, string mode) => IfcMap.Map(doc, mapPath, gidPath, mode);
     /// <summary>IFC export (version default IFC4x3) with Steel Connections elements, storing IfcGUIDs; then rg of every map line.</summary>
     public static string ExportIfc(Document doc, string folder, string name, string mapPath, string version) => IfcMap.ExportIfc(doc, folder, name, mapPath, version);
+    /// <summary>Same as ExportIfc (kept for callers that name the version explicitly).</summary>
+    public static string ExportIfcVersion(Document doc, string folder, string name, string mapPath, string version) => IfcMap.ExportIfc(doc, folder, name, mapPath, version);
+    /// <summary>Steel Connections elements only, IFC2x3 (the only schema Revit 2027 exports them to), through a 3D view showing only those categories.</summary>
+    public static string ExportSteelView(Document doc, string folder, string name) => IfcMap.ExportSteelView(doc, folder, name);
+    /// <summary>TSV guid, id, cat, fam, typ, tid, super, rg of every map line whose element exists (read-only).</summary>
+    public static string RevitIds(Document doc, string mapPath, string outPath) => IfcMap.RevitIds(doc, mapPath, outPath);
+
+    // ---------------------------------------------------------------- families
+    /// <summary>Read-only: families loaded and used, library families among them (libDir of .rfa, optional), families per category.</summary>
+    public static string FamilyStats(Document doc, string libDir) => Families.Stats(doc, libDir);
+    /// <summary>Unused families and family types only, as Purge Unused.</summary>
+    public static string PurgeUnusedFamilies(Document doc, string mode) => Families.PurgeUnused(doc, mode);
+    /// <summary>Classification code (tsv "UniqueId&lt;TAB&gt;code", cut to codeLength, default 5) as name prefix of the families the build made; library families (libDir) keep their names.</summary>
+    public static string RenameFamiliesUniformat(Document doc, string tsvPath, string libDir, string mode, string codeLength) => Families.RenameByCode(doc, tsvPath, libDir, mode, codeLength);
+    /// <summary>Read-only: bounding box (mm) of an element (ElementId or UniqueId) at Coarse, Medium and Fine detail.</summary>
+    public static string GeoDetail(Document doc, string uid) => Families.GeoDetail(doc, uid);
+    /// <summary>Experiment: an L-shaped bolt as sweeps and cylinders in a generic model family; volumes.</summary>
+    public static string TestSweep(Document doc) => Families.TestSweep(doc);
+    /// <summary>Experiment: Member Left / Right of the Beams and Braces template and a family of length L (mm) placed on a line of length L; rolled back.</summary>
+    public static string TestTemplate(Document doc, string mmLength) => Families.TestTemplate(doc, mmLength);
     /// <summary>One line per element with an IfcGUID: guid|class|category|volume m3|box mm|mark (read-only).</summary>
     public static string ExportQa(Document doc, string outPath) => IfcRebuild.ExportQa.Run(doc, outPath);
     /// <summary>Signs that a model was rebuilt by a program, measured read-only, as JSON.</summary>

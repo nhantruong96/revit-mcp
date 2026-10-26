@@ -67,6 +67,52 @@ internal static class IfcMap
         return sb.ToString();
     }
 
+    /// <summary>One TSV line per map line whose element exists: guid (GlobalId of the IFC source), id, cat, fam, typ, tid
+    /// (type id), super (host of a nested family instance), rg (exported GlobalId, after ExportIfc).</summary>
+    public static string RevitIds(Document doc, string mapPath, string outPath)
+    {
+        var sb = new StringBuilder("guid\tid\tcat\tfam\ttyp\ttid\tsuper\trg\n"); int n = 0, miss = 0;
+        foreach (var r in Read(mapPath))
+        {
+            var e = r.TryGetValue("uid", out var uid) ? doc.GetElement(uid) : null;
+            if (e == null) { miss++; continue; }
+            var t = doc.GetElement(e.GetTypeId()) as ElementType;
+            var sup = (e as FamilyInstance)?.SuperComponent;
+            sb.Append(string.Join("\t", r["gid"], e.Id.Value, e.Category?.Name ?? "", t?.FamilyName ?? "", t?.Name ?? "", t?.Id.Value.ToString() ?? "",
+                sup?.Id.Value.ToString() ?? "", r.TryGetValue("rg", out var rg) ? rg : "")).Append('\n'); n++;
+        }
+        File.WriteAllText(outPath, sb.ToString());
+        return $"RevitIds {n} lines, element not found {miss} -> {outPath}";
+    }
+
+    /// <summary>Steel Connections elements only (plates, bolts, anchors, welds...), IFC2x3: Revit 2027 exports them only to IFC2x3
+    /// (Revit.IFC.Export ExportOptionsCache: IncludeSteelElements = ExportAs2x3 &amp;&amp; option). A 3D view "IfcRebuild Steel" that
+    /// shows only those categories filters the export. The GlobalId of each exported element = its compressed Steel Connections id.</summary>
+    public static string ExportSteelView(Document doc, string folder, string name)
+    {
+        var t0 = DateTime.Now; Directory.CreateDirectory(folder);
+        var keep = new HashSet<long> { (long)BuiltInCategory.OST_StructConnectionPlates, (long)BuiltInCategory.OST_StructConnectionBolts,
+            (long)BuiltInCategory.OST_StructConnectionAnchors, (long)BuiltInCategory.OST_StructConnectionWelds, (long)BuiltInCategory.OST_StructConnectionShearStuds,
+            (long)BuiltInCategory.OST_StructConnectionHoles, (long)BuiltInCategory.OST_StructConnections };
+        View3D v;
+        using (var tr = new Transaction(doc, "Steel export view"))
+        {
+            tr.Start();
+            v = new FilteredElementCollector(doc).OfClass(typeof(View3D)).Cast<View3D>().FirstOrDefault(x => !x.IsTemplate && x.Name == "IfcRebuild Steel")
+                ?? View3D.CreateIsometric(doc, new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().First(t => t.ViewFamily == ViewFamily.ThreeDimensional).Id);
+            v.Name = "IfcRebuild Steel"; v.DetailLevel = ViewDetailLevel.Fine; if (v.ViewTemplateId != ElementId.InvalidElementId) v.ViewTemplateId = ElementId.InvalidElementId;
+            foreach (Category c in doc.Settings.Categories)
+                if (c.CategoryType == CategoryType.Model && v.CanCategoryBeHidden(c.Id)) v.SetCategoryHidden(c.Id, !keep.Contains(c.Id.Value));
+            tr.Commit();
+        }
+        var opt = new IFCExportOptions { FileVersion = IFCVersion.IFC2x3, ExportBaseQuantities = true, FilterViewId = v.Id };
+        opt.AddOption("IncludeSteelElements", "true"); opt.AddOption("VisibleElementsOfCurrentView", "true"); opt.AddOption("ActiveViewId", v.Id.Value.ToString());
+        bool ok;
+        using (var tr = new Transaction(doc, "Export Steel IFC")) { tr.Start(); ok = doc.Export(folder, name, opt); tr.Commit(); }
+        var f = Path.Combine(folder, name.EndsWith(".ifc") ? name : name + ".ifc");
+        return $"ExportSteelView {(ok ? "ok" : "FAIL")} {f} {(File.Exists(f) ? new FileInfo(f).Length / 1048576 : 0)} MB | view {v.Id.Value} | {(DateTime.Now - t0).TotalSeconds:F0} s";
+    }
+
     /// <summary>IFC GlobalId (22 characters) of a GUID written as text, bytes in text order (as ifcopenshell.guid.compress).</summary>
     internal static string Compress(string guid)
     {

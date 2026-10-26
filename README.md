@@ -288,7 +288,12 @@ Long builders take a filter to work in batches: `range=a-b` (items a to b-1 in i
 | `Steel`, `SteelProbe`, `SteelSmoke` | Steel Connections plates, bolt and anchor patterns per connection node |
 | `SteelCount`, `SteelBoltReport` | Read-only: Steel Connections objects by type; grip, length and centre of every bolt pattern in the map file (CSV) |
 | `SteelSetGrip`, `SteelSetContour`, `SteelDeleteByMap` | Fix built connections in place: bolt grip where Steel Connections cannot measure it, new plate outline keeping the plate id, delete the elements of listed GlobalIds before rebuilding them |
+| `SteelFixPlates`, `SteelFixBolts`, `SteelFixAnchors` | Bring connections built by an earlier version up to date: plate thickness side, bolt count and spacing, anchor diameter and length |
+| `SteelAnchorInfo`, `SteelAnchorTry`, `SteelSmokePortioning` | Probes: anchor patterns as Steel Connections keeps them, the anchor lengths it accepts, the side a plate thickness goes |
 | `GuidMap`, `ExportIfc` | Map file for setups where Revit keeps its own IfcGUIDs; IFC export with Steel Connections elements that records the exported GlobalId of every map line |
+| `ExportSteelView`, `RevitIds` | IFC2x3 export of the Steel Connections elements alone; TSV of the Revit ids, types and exported GlobalIds of the map lines |
+| `FamilyStats`, `PurgeUnusedFamilies`, `RenameFamiliesUniformat`, `GeoDetail` | Families loaded and used (library families by name), purge of unused families, classification code as family name prefix, element box per detail level |
+| `TestSweep`, `TestTemplate` | Family template experiments: sweep variants of a bent bolt; how the Beams and Braces template stretches |
 | `Rebar` | Native Rebar per IFC bar set, including 135° hooks |
 | `Assemblies` | One assembly per connection node, carrying the node GUID |
 | `Params`, `AuditParams` | IFC attributes, Psets, Qtos and classification as shared parameters, and their audit |

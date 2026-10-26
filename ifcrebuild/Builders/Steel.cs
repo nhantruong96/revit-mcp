@@ -409,4 +409,149 @@ internal static class Steel
         return $"SetContour {mode}: plates {want.Count} | set {ok} | no plate with n vertices {none} | several with n vertices {many} | max vertex deviation {dmax:F1} mm | {(DateTime.Now - t0).TotalSeconds:F0} s"
                + string.Concat(errs.Select(e => "\nERR " + e));
     }
+
+    /// <summary>Plates already built (map lines role PLATE): Portioning = 1, thickness on the +n side as the IFC extrusion (Build
+    /// used 0, the -n side, before it was fixed). mode probe | apply.</summary>
+    public static string FixPlates(Document doc, string mapPath, string mode)
+    {
+        var t0 = DateTime.Now;
+        var want = new HashSet<string>(MapRows(mapPath).Where(r => Role(r) == "PLATE").Select(r => Key(r.GetProperty("as").GetString())));
+        int ok = 0, had = 0;
+        using var tg = new TransactionGroup(doc, "Fix plate thickness side"); tg.Start();
+        using (var tr = new FabricationTransaction(doc, false, "Fix plate thickness side"))
+        {
+            foreach (var (k, pl) in AsObjects<Plate>())
+            {
+                if (!want.Contains(k)) continue;
+                if (Math.Abs(pl.Portioning - 1) < 1e-9) { had++; continue; }
+                pl.Portioning = 1; ok++;
+            }
+            tr.Commit();
+        }
+        if (mode == "apply") tg.Assimilate(); else tg.RollBack();
+        return $"FixPlates {mode}: plates in map {want.Count} | fixed {ok} | already right {had} | {(DateTime.Now - t0).TotalSeconds:F0} s";
+    }
+
+    /// <summary>Bolt patterns already built (map lines role BOLTS): Nx, Ny, Dx, Dy from the Steel input JSON (Build left the
+    /// constructor's 2 x 2 before it was fixed). filter "max=n" | "range=a-b" | "names=gid,.." | "". mode probe | apply.</summary>
+    public static string FixBolts(Document doc, string jsonPath, string mapPath, string filter, string mode)
+    {
+        var t0 = DateTime.Now; var sb = new StringBuilder();
+        var groups = JsonDocument.Parse(File.ReadAllText(jsonPath)).RootElement.GetProperty("bolts").EnumerateArray().ToDictionary(b => b.GetProperty("gid").GetString());
+        var lines = Batch.Pick(MapRows(mapPath).Where(r => Role(r) == "BOLTS").ToList(), filter, r => r.GetProperty("gid").GetString());
+        int ok = 0, miss = 0, screws = 0, expect = 0; var errs = new List<string>();
+        using var tg = new TransactionGroup(doc, "Fix bolt patterns"); tg.Start();
+        using (var tr = new FabricationTransaction(doc, false, "Fix bolt patterns"))
+        {
+            var byUid = AsObjects<FinitRectScrewBoltPattern>();
+            sb.AppendLine($"rectangular bolt patterns {byUid.Count}");
+            foreach (var r in lines)
+            {
+                var gid = r.GetProperty("gid").GetString();
+                if (!groups.TryGetValue(gid, out var b) || !byUid.TryGetValue(Key(r.GetProperty("as").GetString()), out var bp)) { miss++; continue; }
+                try
+                {
+                    if (b.GetProperty("grid").ValueKind == JsonValueKind.Object)
+                    {
+                        var g = b.GetProperty("grid"); int nu = g.GetProperty("nu").GetInt32(), nv = g.GetProperty("nv").GetInt32();
+                        SetGrid(bp, nu, nv, g.GetProperty("du").GetDouble(), g.GetProperty("dv").GetDouble()); expect += nu * nv;
+                    }
+                    else { SetGrid(bp, 1, 1, 0, 0); expect += 1; }
+                    screws += bp.NumberOfScrews; ok++;
+                }
+                catch (Exception ex) { if (errs.Count < 10) errs.Add(gid + ": " + ex.Message); }
+            }
+            tr.Commit();
+        }
+        sb.AppendLine($"FixBolts {mode}: groups {lines.Count} | fixed {ok} | not found {miss} | bolts {screws} (expected {expect}) | {(DateTime.Now - t0).TotalSeconds:F0} s");
+        foreach (var e in errs) sb.AppendLine("ERR " + e);
+        if (mode == "apply") tg.Assimilate(); else tg.RollBack();
+        return sb.ToString();
+    }
+
+    /// <summary>Anchor patterns already built (map lines role ANCHORS): ScrewDiameter and ScrewLength (straight part, p0 to p1 of
+    /// the input anchor) from the Steel input JSON; reports the values Steel Connections keeps (it snaps to its standard tables).
+    /// filter "max=n" | "range=a-b" | "". mode probe | apply.</summary>
+    public static string FixAnchors(Document doc, string jsonPath, string mapPath, string filter, string mode)
+    {
+        var t0 = DateTime.Now; var sb = new StringBuilder();
+        var anc = JsonDocument.Parse(File.ReadAllText(jsonPath)).RootElement.GetProperty("anchors").EnumerateArray().ToDictionary(a => a.GetProperty("gid").GetString());
+        var byAs = MapRows(mapPath).Where(r => Role(r) == "ANCHORS" && anc.ContainsKey(r.GetProperty("gid").GetString()))
+            .GroupBy(r => Key(r.GetProperty("as").GetString())).ToDictionary(g => g.Key, g => anc[g.First().GetProperty("gid").GetString()]);
+        var keys = Batch.Pick(byAs.Keys.ToList(), filter, k => k);
+        var want = new HashSet<string>(keys); int ok = 0; var res = new List<string>();
+        using var tg = new TransactionGroup(doc, "Fix anchor patterns"); tg.Start();
+        using (var tr = new FabricationTransaction(doc, false, "Fix anchor patterns"))
+        {
+            foreach (var (k, ap) in AsObjects<AnchorPattern>())
+            {
+                if (!want.Contains(k)) continue;
+                var a = byAs[k]; var p = a.GetProperty("pts"); var p0 = Pt(p[0]); var p1 = Pt(p[1]);
+                double d = a.GetProperty("d").GetDouble(), L = p0.DistanceTo(p1);
+                try { ap.ScrewDiameter = d; ap.ScrewLength = L; ok++; } catch (Exception ex) { res.Add("ERR " + ex.Message); }
+                if (res.Count < 6) res.Add(string.Format(CI, "asked d {0} L {1:F0} -> d {2} len {3:F0} screwLen {4:F0} std {5} normal z {6:F2} ref z {7:F0} (input top {8:F0})",
+                    d, L, ap.ScrewDiameter, ap.Length, ap.ScrewLength, ap.Standard, ap.Normal.z, ap.RefPoint.z, p0.z));
+            }
+            tr.Commit();
+        }
+        if (mode == "apply") tg.Assimilate(); else tg.RollBack();
+        sb.AppendLine($"FixAnchors {mode}: groups {keys.Count} | fixed {ok} | {(DateTime.Now - t0).TotalSeconds:F0} s");
+        foreach (var r in res) sb.AppendLine("  " + r);
+        return sb.ToString();
+    }
+
+    /// <summary>Read-only: direction, length and standard of the first n anchor patterns (to compare them with the IFC anchors).</summary>
+    public static string AnchorInfo(Document doc, string n)
+    {
+        var sb = new StringBuilder(); int k = 0, max = Batch.Int(n, 10);
+        using (var tr = new FabricationTransaction(doc, true, "Read anchor patterns"))
+        {
+            foreach (var ap in AsObjects<AnchorPattern>().Values)
+            {
+                var nm = ap.Normal; var bn = ap.BoltNormal; var rp = ap.RefPoint;
+                sb.AppendLine(string.Format(CI, "{0} | normal {1:F2},{2:F2},{3:F2} | boltNormal {4:F2},{5:F2},{6:F2} | inverted {7} | ref {8:F0},{9:F0},{10:F0} | len {11:F0} screwLen {12:F0} unfolded {13:F0} | d {14} | std {15} | type {16} | n {17}",
+                    ap.GetUniqueId(), nm.x, nm.y, nm.z, bn.x, bn.y, bn.z, ap.IsInverted, rp.x, rp.y, rp.z, ap.Length, ap.ScrewLength, ap.AnchorUnfoldedLength, ap.ScrewDiameter, ap.Standard, ap.AnchorType, ap.NumberOfScrews));
+                if (++k >= max) break;
+            }
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Probe, rolled back: on the first anchor pattern with this diameter (mm), sets each ScrewLength of the list
+    /// "l1,l2,.." (mm) and reports the values Steel Connections keeps.</summary>
+    public static string AnchorTry(Document doc, string diameter, string lengths)
+    {
+        var sb = new StringBuilder(); double dw = double.Parse(diameter, CI);
+        using var tg = new TransactionGroup(doc, "Try anchor lengths"); tg.Start();
+        try
+        {
+            using var tr = new FabricationTransaction(doc, false, "Try anchor lengths");
+            var ap = AsObjects<AnchorPattern>().Values.FirstOrDefault(x => Math.Abs(x.ScrewDiameter - dw) < 0.1);
+            if (ap == null) return "no anchor pattern with d " + diameter;
+            sb.AppendLine($"before: screwLen {ap.ScrewLength:F0} len {ap.Length:F0} unfolded {ap.AnchorUnfoldedLength:F0} thread {ap.ThreadLength:F0} std {ap.Standard} grade {ap.Grade} type {ap.AnchorType} orient {ap.OrientationType}");
+            foreach (var l in lengths.Split(',').Select(v => double.Parse(v, CI)))
+            {
+                try { ap.ScrewLength = l; sb.AppendLine($"  set {l:F0}: screwLen {ap.ScrewLength:F0} len {ap.Length:F0} unfolded {ap.AnchorUnfoldedLength:F0} thread {ap.ThreadLength:F0}"); }
+                catch (Exception ex) { sb.AppendLine($"  set {l:F0}: ERROR {ex.Message}"); }
+            }
+            tr.Commit();
+        }
+        finally { tg.RollBack(); }
+        return sb.ToString();
+    }
+
+    /// <summary>Three 200 x 100 x 10 plates on z = 0 (normal +Z) with Portioning 0, 0.5, 1 at x = 0, 300, 600, to see on which
+    /// side of the plane the thickness goes (smoke test, best on an empty project).</summary>
+    public static string SmokePortioning(Document doc)
+    {
+        using var tr = new FabricationTransaction(doc, false, "Smoke portioning");
+        var sb = new StringBuilder();
+        foreach (var (pv, x0) in new[] { (0.0, 0.0), (0.5, 300.0), (1.0, 600.0) })
+        {
+            var pts = new[] { new Point3d(x0, 0, 0), new Point3d(x0 + 200, 0, 0), new Point3d(x0 + 200, 100, 0), new Point3d(x0, 100, 0) };
+            var pl = new Plate(new Plane(pts[0], new Vector3d(0, 0, 1)), pts, 10); pl.Portioning = pv; pl.WriteToDb();
+            sb.Append($"portioning {pv} x0 {x0} | ");
+        }
+        tr.Commit(); return sb.ToString();
+    }
 }
